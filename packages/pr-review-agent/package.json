@@ -1,0 +1,30 @@
+{
+  "name": "pr-review-agent",
+  "version": "0.1.0",
+  "description": "LLM-powered pull request reviewer with whole-repo context from a persistent repomind codemap",
+  "type": "module",
+  "bin": {
+    "pr-review": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx src/cli.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0",
+    "repomind": "*",
+    "yaml": "^2.5.0",
+    "zod": "^4.4.3"
+  }
+}

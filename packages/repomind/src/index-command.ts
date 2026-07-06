@@ -1,5 +1,4 @@
-import { loadConfig } from "../config.js";
-import type { CodemapIndex } from "../types.js";
+import type { CodemapIndex } from "./types.js";
 import { extractFileFacts, listSourceFiles, planIndexUpdate, sha1 } from "./indexer.js";
 import { emptyIndex, loadIndex, saveIndex } from "./store.js";
 import { summarizeFiles } from "./summarize.js";
@@ -10,7 +9,8 @@ export interface IndexOptions {
   full?: boolean;
   /** Skip LLM summaries (symbols + import graph only; no API key needed). */
   llm?: boolean;
-  configPath?: string;
+  /** Extra ignore globs on top of the built-in defaults. */
+  ignore?: string[];
   log?: (msg: string) => void;
 }
 
@@ -21,12 +21,11 @@ export interface IndexStats {
   total: number;
 }
 
-/** Build or incrementally update .pr-review/index.json. */
+/** Build or incrementally update .repomind/index.json. */
 export async function runIndex(opts: IndexOptions): Promise<IndexStats> {
   const log = opts.log ?? (() => {});
-  const config = await loadConfig(opts.cwd, opts.configPath);
   const previous = (await loadIndex(opts.cwd)) ?? emptyIndex();
-  const files = await listSourceFiles(opts.cwd, config);
+  const files = await listSourceFiles(opts.cwd, opts.ignore ?? []);
 
   const plan = await planIndexUpdate(opts.cwd, files, previous, opts.full ?? false);
   log(`${files.length} source files; ${plan.stale.length} to (re)index, ${plan.removed.length} removed.`);

@@ -1,4 +1,4 @@
-import type { CodemapIndex } from "../types.js";
+import type { CodemapIndex } from "./types.js";
 
 export interface ContextEntry {
   path: string;

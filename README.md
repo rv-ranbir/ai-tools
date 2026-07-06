@@ -3,11 +3,16 @@
 **LLM-powered pull request review with whole-repository context.**
 A CLI + GitHub Action that reviews diffs the way a senior engineer would — knowing the codebase, not just the patch.
 
+Two packages, one ecosystem:
+
+- **[`repomind`](packages/repomind)** — the memory. A persistent, token-efficient index of the whole repo (symbols, import graph, LLM summaries), reusable by **any** AI tool via MCP server, CLI, or library.
+- **`pr-review-agent`** — the reviewer. The first consumer of that memory: reviews PR diffs with whole-project context on GitHub and Bitbucket.
+
 ## The problem
 
 Manual PR review is one of the most expensive rituals on a team: reviews queue for hours or days, standards drift between reviewers, and the same classes of bugs (off-by-ones, missing tests, unvalidated input) slip through when reviewers are tired. Existing LLM reviewers help, but most of them see **only the diff** — so they miss broken callers, flag "issues" the codebase already handles elsewhere, and can't judge naming or conventions against the rest of the project.
 
-`pr-review-agent` fixes that with a **persistent codemap**: a compact, incrementally-updated index of every file in the repo (exported symbols, import graph, and a one-paragraph LLM summary per file). At review time, the import graph selects the files most relevant to the change — the direct **importers** of changed files (the code that breaks if the change is wrong) and their direct **imports** (the APIs the change relies on) — and injects their summaries into the review prompt under a strict token budget. The reviewer sees the project, not just the patch, without paying to re-read the whole repo on every PR.
+`pr-review-agent` fixes that with **repomind**, a persistent codemap: a compact, incrementally-updated index of every file in the repo (exported symbols, import graph, and a one-paragraph LLM summary per file). At review time, the import graph selects the files most relevant to the change — the direct **importers** of changed files (the code that breaks if the change is wrong) and their direct **imports** (the APIs the change relies on) — and injects their summaries into the review prompt under a strict token budget. The reviewer sees the project, not just the patch, without paying to re-read the whole repo on every PR.
 
 After each merge, a workflow re-indexes **only the files that changed** and commits the updated codemap — so the agent's memory of the project stays current as the codebase evolves.
 
@@ -15,7 +20,7 @@ After each merge, a workflow re-indexes **only the files that changed** and comm
 
 ```mermaid
 flowchart TD
-    subgraph memory["Persistent repo memory (.pr-review/index.json)"]
+    subgraph memory["repomind — persistent repo memory (.repomind/index.json)"]
         IDX["pr-review index\n(incremental: only changed files)"] --> MAP["Codemap\nper file: content hash · exported symbols\nimport graph · LLM summary"]
         MERGE["Push to main\n(post-merge workflow)"] -->|re-index changed files, auto-commit| IDX
     end
@@ -109,7 +114,7 @@ jobs:
           fail-on: high
 ```
 
-Then add the **codemap update workflow** so the repo memory stays current after every merge — see [`examples/update-index.yml`](examples/update-index.yml). It runs `pr-review index` on pushes to `main` (re-indexing only the changed files) and commits `.pr-review/index.json` back.
+Then add the **codemap update workflow** so the repo memory stays current after every merge — see [`examples/update-index.yml`](examples/update-index.yml). It runs `pr-review index` on pushes to `main` (re-indexing only the changed files) and commits `.repomind/index.json` back.
 
 Findings are posted as **one PR review** with inline comments scoped to the changed lines only; comments already posted by a previous run are not duplicated on re-push. The check fails only when a finding is at or above `fail-on`.
 
@@ -168,13 +173,22 @@ src/math.ts
 1 finding(s): 1 high
 ```
 
-## How the memory works
+## How the memory works — and how to reuse it
 
-1. **`pr-review index`** walks the repo (respecting `.gitignore` + your `ignore` patterns) and stores, per file: a content hash, exported symbol signatures and resolved relative imports (TypeScript compiler API for TS/JS, regex heuristics for other languages), and a one-paragraph LLM summary (batched calls; skipped with `--no-llm`).
+1. **`pr-review index`** (or `repomind index`) walks the repo (respecting `.gitignore` + your `ignore` patterns) and stores, per file: a content hash, exported symbol signatures and resolved relative imports (TypeScript compiler API for TS/JS, regex heuristics for other languages), and a one-paragraph LLM summary (batched calls; skipped with `--no-llm`).
 2. Runs are **incremental**: only files whose content hash changed are re-extracted and re-summarized; deleted files are pruned. A post-merge workflow keeps the committed index in sync with `main`.
 3. At review time, **context selection is deterministic** — no extra LLM call. For each changed file the import graph yields its importers and imports, ranked by how many changed files they touch, packed into `context_token_budget`. That context rides in the prompt alongside the annotated diff.
 
-The index lives at `.pr-review/index.json` in the consuming repo: transparent, versioned with the code, and identical for local runs and CI.
+The index lives at `.repomind/index.json` in the consuming repo: transparent, versioned with the code, and identical for local runs and CI.
+
+The memory is **not review-only**. The same index serves any AI tool in your stack:
+
+```bash
+# Claude Code, Cursor, Windsurf, … — any MCP client
+claude mcp add repomind -- repomind mcp
+```
+
+That gives every assistant `get_context` (what depends on these files?), `search_symbols` (where is X?), and `file_info` (what does this file do?) over the committed repo memory — no re-reading the codebase, no extra LLM calls. Details, CLI and library API: [`packages/repomind`](packages/repomind).
 
 ## Development
 

@@ -1,9 +1,35 @@
-import { structuredCall } from "../llm/client.js";
-import { fileSummariesSchema } from "../llm/schema.js";
-import { SUMMARIZE_SYSTEM_PROMPT, buildSummarizeUserPrompt } from "../llm/prompt.js";
+import { z } from "zod";
+import { structuredCall } from "./llm.js";
 
 const FILES_PER_BATCH = 8;
 const MAX_BATCH_CHARS = 120_000;
+const MAX_CHARS_PER_FILE = 24_000;
+
+export const fileSummariesSchema = z.object({
+  summaries: z.array(
+    z.object({
+      path: z.string(),
+      summary: z
+        .string()
+        .describe("One paragraph: the file's purpose, key behaviors, and notable invariants"),
+    }),
+  ),
+});
+
+export type FileSummaries = z.infer<typeof fileSummariesSchema>;
+
+export const SUMMARIZE_SYSTEM_PROMPT = `You summarize source files for a repository context index used by AI tools. For each file, write ONE paragraph (2-4 sentences) covering: the file's purpose, its key exported behaviors, and any invariants or conventions a reader of dependent code should know. Be concrete and dense — this text is injected into future prompts under a tight token budget. No filler like "This file contains".`;
+
+export function buildSummarizeUserPrompt(files: { path: string; content: string }[]): string {
+  const blocks = files.map((f) => {
+    const truncated =
+      f.content.length > MAX_CHARS_PER_FILE
+        ? f.content.slice(0, MAX_CHARS_PER_FILE) + "\n… (truncated)"
+        : f.content;
+    return `## FILE: ${f.path}\n\`\`\`\n${truncated}\n\`\`\``;
+  });
+  return `Summarize each of the following files. Return one summary per file, keyed by the exact path shown.\n\n${blocks.join("\n\n")}`;
+}
 
 /**
  * Generate one-paragraph summaries for the given files, batched to limit

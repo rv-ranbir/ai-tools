@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../src/config.js";
 
-// Mock the LLM client — tests never hit a real API.
-vi.mock("../src/llm/client.js", () => ({
+// Mock repomind's LLM client — tests never hit a real API.
+vi.mock("repomind", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("repomind")>()),
   structuredCall: vi.fn(),
   getModel: () => "mock-model",
   resolveProvider: () => ({ provider: "anthropic", model: "mock-model", baseUrl: "", apiKey: "" }),
 }));
 
-import { structuredCall } from "../src/llm/client.js";
+import { structuredCall } from "repomind";
 import { runReview } from "../src/review.js";
 
 const mockedCall = vi.mocked(structuredCall);

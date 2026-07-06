@@ -20,28 +20,29 @@ export const OPENAI_BASE_URL = "https://api.openai.com/v1";
 /**
  * Resolve which LLM provider to call.
  *
- * Explicit: PR_REVIEW_PROVIDER=anthropic | openai | openrouter | openai-compatible.
+ * Explicit: REPOMIND_PROVIDER=anthropic | openai | openrouter | openai-compatible.
  * Otherwise inferred from which API key env vars are set:
  *   ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN -> Anthropic (official SDK)
  *   OPENROUTER_API_KEY                        -> OpenRouter (openai-compatible)
  *   OPENAI_API_KEY                            -> OpenAI or any compatible endpoint
  * Any OpenAI-compatible endpoint (Cursor, LiteLLM, vLLM, Together, …) works via
- * PR_REVIEW_BASE_URL + PR_REVIEW_API_KEY.
+ * REPOMIND_BASE_URL + REPOMIND_API_KEY.
+ * PR_REVIEW_* spellings of every REPOMIND_* var are accepted as aliases.
  */
 export function resolveProvider(): ProviderSettings {
   const env = process.env;
-  const explicit = (env.PR_REVIEW_PROVIDER ?? "").toLowerCase();
-  const model = env.PR_REVIEW_MODEL || env.ANTHROPIC_MODEL || "";
+  const explicit = (env.REPOMIND_PROVIDER || env.PR_REVIEW_PROVIDER || "").toLowerCase();
+  const model = env.REPOMIND_MODEL || env.PR_REVIEW_MODEL || env.ANTHROPIC_MODEL || "";
 
   const openAiCompatible = (baseUrl: string, apiKey: string): ProviderSettings => {
     if (!model) {
       throw new Error(
-        "Set PR_REVIEW_MODEL when using an OpenAI-compatible provider (e.g. PR_REVIEW_MODEL=gpt-4o or anthropic/claude-sonnet-4.5 on OpenRouter).",
+        "Set REPOMIND_MODEL (or PR_REVIEW_MODEL) when using an OpenAI-compatible provider (e.g. gpt-4o, or anthropic/claude-sonnet-4.5 on OpenRouter).",
       );
     }
     if (!apiKey) {
       throw new Error(
-        "No API key found for the OpenAI-compatible provider. Set PR_REVIEW_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY).",
+        "No API key found for the OpenAI-compatible provider. Set REPOMIND_API_KEY or PR_REVIEW_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY).",
       );
     }
     return { provider: "openai-compatible", model, baseUrl, apiKey };
@@ -54,8 +55,8 @@ export function resolveProvider(): ProviderSettings {
     apiKey: "",
   });
 
-  const customBase = env.PR_REVIEW_BASE_URL || env.OPENAI_BASE_URL || "";
-  const genericKey = env.PR_REVIEW_API_KEY || "";
+  const customBase = env.REPOMIND_BASE_URL || env.PR_REVIEW_BASE_URL || env.OPENAI_BASE_URL || "";
+  const genericKey = env.REPOMIND_API_KEY || env.PR_REVIEW_API_KEY || "";
 
   switch (explicit) {
     case "anthropic":
@@ -72,7 +73,7 @@ export function resolveProvider(): ProviderSettings {
       break;
     default:
       throw new Error(
-        `Unknown PR_REVIEW_PROVIDER "${env.PR_REVIEW_PROVIDER}". Use anthropic, openai, openrouter, or openai-compatible.`,
+        `Unknown provider "${env.REPOMIND_PROVIDER || env.PR_REVIEW_PROVIDER}". Use anthropic, openai, openrouter, or openai-compatible.`,
       );
   }
 

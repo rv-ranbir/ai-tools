@@ -3,9 +3,13 @@ import {
   OPENAI_BASE_URL,
   OPENROUTER_BASE_URL,
   resolveProvider,
-} from "../src/llm/client.js";
+} from "../src/llm.js";
 
 const PROVIDER_ENV_VARS = [
+  "REPOMIND_PROVIDER",
+  "REPOMIND_MODEL",
+  "REPOMIND_BASE_URL",
+  "REPOMIND_API_KEY",
   "PR_REVIEW_PROVIDER",
   "PR_REVIEW_MODEL",
   "PR_REVIEW_BASE_URL",
@@ -39,6 +43,15 @@ describe("resolveProvider", () => {
     expect(s.provider).toBe("openai-compatible");
     expect(s.baseUrl).toBe(OPENROUTER_BASE_URL);
     expect(s.apiKey).toBe("sk-or-test");
+  });
+
+  it("accepts REPOMIND_* env vars, taking precedence over PR_REVIEW_*", () => {
+    withEnv({
+      OPENROUTER_API_KEY: "sk-or-test",
+      REPOMIND_MODEL: "repomind-model",
+      PR_REVIEW_MODEL: "legacy-model",
+    });
+    expect(resolveProvider().model).toBe("repomind-model");
   });
 
   it("routes to OpenAI when only OPENAI_API_KEY is set", () => {
@@ -77,11 +90,11 @@ describe("resolveProvider", () => {
 
   it("requires a model for OpenAI-compatible providers", () => {
     withEnv({ OPENAI_API_KEY: "b" });
-    expect(() => resolveProvider()).toThrow(/PR_REVIEW_MODEL/);
+    expect(() => resolveProvider()).toThrow(/REPOMIND_MODEL/);
   });
 
   it("rejects unknown provider names", () => {
     withEnv({ PR_REVIEW_PROVIDER: "gemini" });
-    expect(() => resolveProvider()).toThrow(/Unknown PR_REVIEW_PROVIDER/);
+    expect(() => resolveProvider()).toThrow(/Unknown provider "gemini"/);
   });
 });

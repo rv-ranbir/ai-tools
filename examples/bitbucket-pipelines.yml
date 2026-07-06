@@ -40,10 +40,10 @@ pipelines:
             # pipeline (Repository settings -> Pipelines -> enable write access,
             # or an app password in a secured variable).
             - |
-              if ! git diff --quiet -- .pr-review/index.json; then
+              if ! git diff --quiet -- .repomind/index.json; then
                 git config user.name "pipelines-bot"
                 git config user.email "pipelines-bot@users.noreply.bitbucket.org"
-                git add .pr-review/index.json
-                git commit -m "chore: update review codemap [skip ci]"
+                git add .repomind/index.json
+                git commit -m "chore: update repomind index [skip ci]"
                 git push origin main
               fi

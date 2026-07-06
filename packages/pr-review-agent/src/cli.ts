@@ -2,13 +2,12 @@
 import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
+import { getModel, runIndex } from "repomind";
 import { getBbPrDiff, postBbReview, resolveBbRef, type BbRef } from "./bitbucket/comments.js";
-import { runIndex } from "./codemap/index-command.js";
 import { loadConfig } from "./config.js";
 import { getPrDiff, getPrHeadSha, makeOctokit, parseRepoSlug, type PrRef } from "./diff/github.js";
 import { getLocalDiff } from "./diff/local.js";
 import { postReview } from "./github/comments.js";
-import { getModel } from "./llm/client.js";
 import { formatReport, shouldFail } from "./report/cli.js";
 import { buildJsonReport, writeJsonReport } from "./report/json.js";
 import { runReview } from "./review.js";
@@ -24,18 +23,19 @@ program
 
 program
   .command("index")
-  .description("Build or incrementally update the repo codemap (.pr-review/index.json)")
+  .description("Build or incrementally update the repo memory (.repomind/index.json)")
   .option("--full", "re-index every file regardless of content hash", false)
   .option("--no-llm", "skip LLM summaries (symbols + import graph only; no API key needed)")
   .option("--dir <path>", "repository root", process.cwd())
   .option("--config <path>", "path to .pr-review.yml")
   .action(async (opts) => {
     const cwd = path.resolve(opts.dir);
+    const config = await loadConfig(cwd, opts.config);
     const stats = await runIndex({
       cwd,
       full: opts.full,
       llm: opts.llm,
-      configPath: opts.config,
+      ignore: config.ignore,
       log,
     });
     console.log(

@@ -25,19 +25,6 @@ export const reviewOutputSchema = z.object({
 
 export type ReviewOutput = z.infer<typeof reviewOutputSchema>;
 
-export const fileSummariesSchema = z.object({
-  summaries: z.array(
-    z.object({
-      path: z.string(),
-      summary: z
-        .string()
-        .describe("One paragraph: the file's purpose, key behaviors, and notable invariants"),
-    }),
-  ),
-});
-
-export type FileSummaries = z.infer<typeof fileSummariesSchema>;
-
 /**
  * Post-validate model findings against the diff and config.
  * Drops findings on files/lines outside the diff, below the confidence floor,

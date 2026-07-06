@@ -1,9 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { CodemapIndex } from "../types.js";
+import type { CodemapIndex } from "./types.js";
 
-export const INDEX_DIR = ".pr-review";
+export const INDEX_DIR = ".repomind";
 export const INDEX_FILE = "index.json";
 
 export function indexPath(cwd: string): string {
@@ -15,7 +15,7 @@ export async function loadIndex(cwd: string): Promise<CodemapIndex | null> {
   if (!existsSync(file)) return null;
   const raw = JSON.parse(await readFile(file, "utf8"));
   if (raw?.version !== 1 || typeof raw.files !== "object") {
-    throw new Error(`Unrecognized codemap index format in ${file}. Re-run: pr-review index --full`);
+    throw new Error(`Unrecognized codemap index format in ${file}. Re-run: repomind index --full`);
   }
   return raw as CodemapIndex;
 }

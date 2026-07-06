@@ -53,17 +53,3 @@ export function buildReviewUserPrompt(input: ReviewPromptInput): string {
 
   return parts.join("\n\n");
 }
-
-export const SUMMARIZE_SYSTEM_PROMPT = `You summarize source files for a code-review context index. For each file, write ONE paragraph (2-4 sentences) covering: the file's purpose, its key exported behaviors, and any invariants or conventions a reviewer of dependent code should know. Be concrete and dense — this text is injected into future code-review prompts under a tight token budget. No filler like "This file contains".`;
-
-export function buildSummarizeUserPrompt(files: { path: string; content: string }[]): string {
-  const MAX_CHARS_PER_FILE = 24_000;
-  const blocks = files.map((f) => {
-    const truncated =
-      f.content.length > MAX_CHARS_PER_FILE
-        ? f.content.slice(0, MAX_CHARS_PER_FILE) + "\n… (truncated)"
-        : f.content;
-    return `## FILE: ${f.path}\n\`\`\`\n${truncated}\n\`\`\``;
-  });
-  return `Summarize each of the following files. Return one summary per file, keyed by the exact path shown.\n\n${blocks.join("\n\n")}`;
-}

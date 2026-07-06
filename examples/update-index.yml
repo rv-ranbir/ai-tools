@@ -1,5 +1,5 @@
 # Copy to .github/workflows/update-index.yml in the consuming repository.
-# Keeps the codemap (.pr-review/index.json) current: after every merge to main,
+# Keeps the codemap (.repomind/index.json) current: after every merge to main,
 # only the files changed by that merge are re-indexed and re-summarized, then
 # the updated index is committed back. Subsequent PR reviews use this memory.
 name: Update Review Codemap
@@ -33,12 +33,12 @@ jobs:
 
       - name: Commit updated index
         run: |
-          if git diff --quiet -- .pr-review/index.json; then
+          if git diff --quiet -- .repomind/index.json; then
             echo "Codemap unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .pr-review/index.json
-          git commit -m "chore: update review codemap [skip ci]"
+          git add .repomind/index.json
+          git commit -m "chore: update repomind index [skip ci]"
           git push

@@ -1,8 +1,6 @@
+import { estimateTokens, loadIndex, selectContext, structuredCall } from "repomind";
 import { isIgnored } from "./config.js";
 import { parseDiff } from "./diff/parse.js";
-import { selectContext, estimateTokens } from "./codemap/graph.js";
-import { loadIndex } from "./codemap/store.js";
-import { structuredCall } from "./llm/client.js";
 import { REVIEW_SYSTEM_PROMPT, buildReviewUserPrompt } from "./llm/prompt.js";
 import { reviewOutputSchema, validateFindings, type ReviewOutput } from "./llm/schema.js";
 import type { FileDiff, ReviewConfig, ReviewResult } from "./types.js";
@@ -51,7 +49,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
       usedContext = selection.entries.length > 0;
       log(`Injecting context from ${selection.entries.length} codemap entries.`);
     } else {
-      log("No codemap index found (.pr-review/index.json) — reviewing diff-only. Run `pr-review index` to enable repo context.");
+      log("No repomind index found (.repomind/index.json) — reviewing diff-only. Run `pr-review index` to enable repo context.");
     }
   }
 

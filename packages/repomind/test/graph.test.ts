@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectContext } from "../src/codemap/graph.js";
+import { selectContext } from "../src/graph.js";
 import type { CodemapIndex } from "../src/types.js";
 
 const index: CodemapIndex = {

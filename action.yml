@@ -48,10 +48,10 @@ runs:
       shell: bash
       run: |
         cd "${{ github.action_path }}"
-        # typescript is a runtime dependency (used by the codemap indexer),
+        # typescript is a runtime dependency (used by the repomind indexer),
         # so a prod install is enough to build with tsc.
         npm ci --omit=dev --ignore-scripts
-        npx tsc -p tsconfig.json
+        npx tsc -b
 
     - name: Review pull request
       shell: bash
@@ -67,4 +67,4 @@ runs:
         if [ -n "${{ inputs.fail-on }}" ]; then ARGS+=(--fail-on "${{ inputs.fail-on }}"); fi
         if [ -n "${{ inputs.config-path }}" ]; then ARGS+=(--config "${{ inputs.config-path }}"); fi
         if [ "${{ inputs.post-comments }}" = "true" ]; then ARGS+=(--post); fi
-        node "${{ github.action_path }}/dist/cli.js" "${ARGS[@]}"
+        node "${{ github.action_path }}/packages/pr-review-agent/dist/cli.js" "${ARGS[@]}"

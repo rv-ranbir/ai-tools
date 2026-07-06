@@ -5,8 +5,8 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import ts from "typescript";
-import { isIgnored } from "../config.js";
-import type { CodemapFileEntry, CodemapIndex, ReviewConfig } from "../types.js";
+import { isIgnored } from "./ignore.js";
+import type { CodemapFileEntry, CodemapIndex } from "./types.js";
 
 const exec = promisify(execFile);
 
@@ -23,8 +23,8 @@ export function sha1(content: string): string {
   return createHash("sha1").update(content).digest("hex");
 }
 
-/** List indexable source files via git (respects .gitignore), filtered by config ignores. */
-export async function listSourceFiles(cwd: string, config: ReviewConfig): Promise<string[]> {
+/** List indexable source files via git (respects .gitignore), filtered by ignore globs. */
+export async function listSourceFiles(cwd: string, ignore: string[] = []): Promise<string[]> {
   const { stdout } = await exec(
     "git",
     ["ls-files", "--cached", "--others", "--exclude-standard"],
@@ -35,7 +35,7 @@ export async function listSourceFiles(cwd: string, config: ReviewConfig): Promis
     .map((l) => l.trim())
     .filter(Boolean)
     .filter((f) => TEXT_EXTENSIONS.has(path.extname(f).toLowerCase()))
-    .filter((f) => !isIgnored(f, config));
+    .filter((f) => !isIgnored(f, ignore));
 }
 
 export interface IndexUpdatePlan {
