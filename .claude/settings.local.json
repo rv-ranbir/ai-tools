@@ -3,7 +3,16 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -q -m 'docs: add design spec for PR review agent *)",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(node dist/cli.js --help)",
+      "Bash(node dist/cli.js review --help)",
+      "Bash(node dist/cli.js index --no-llm)",
+      "Bash(node -e \"const i=require\\('./.pr-review/index.json'\\); const f=Object.keys\\(i.files\\); console.log\\(f.length,'files'\\); console.log\\(JSON.stringify\\(i.files['src/review.ts'],null,1\\).slice\\(0,600\\)\\)\")",
+      "Bash(printf \"node_modules/\\\\ndist/\\\\npr-review-report.json\\\\n\")",
+      "Bash(git commit -q -m 'feat: core CLI — diff parsing, codemap index, multi-provider LLM client, review engine *)"
     ]
   }
 }
