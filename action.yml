@@ -1,0 +1,70 @@
+name: "PR Review Agent"
+description: >-
+  LLM-powered pull request review with whole-repo context. Posts inline review
+  comments on changed lines and fails the check on high-severity findings.
+author: "pr-review-agent"
+branding:
+  icon: "eye"
+  color: "purple"
+
+inputs:
+  anthropic-api-key:
+    description: "Anthropic API key. Leave empty when using another provider."
+    required: false
+  openai-api-key:
+    description: "OpenAI (or compatible) API key. Alternative to anthropic-api-key."
+    required: false
+  openrouter-api-key:
+    description: "OpenRouter API key. Alternative to anthropic-api-key."
+    required: false
+  github-token:
+    description: "Token used to fetch the PR diff and post review comments."
+    default: ${{ github.token }}
+  model:
+    description: "Model id (sets PR_REVIEW_MODEL). Defaults to claude-opus-4-8 on Anthropic."
+    required: false
+  base-url:
+    description: "Base URL for an OpenAI-compatible endpoint (sets PR_REVIEW_BASE_URL)."
+    required: false
+  fail-on:
+    description: "Fail the check at/above this severity: critical|high|medium|low|info."
+    required: false
+  config-path:
+    description: "Path to .pr-review.yml (defaults to repo root)."
+    required: false
+  post-comments:
+    description: "Post findings as PR review comments."
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install pr-review-agent
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        # typescript is a runtime dependency (used by the codemap indexer),
+        # so a prod install is enough to build with tsc.
+        npm ci --omit=dev --ignore-scripts
+        npx tsc -p tsconfig.json
+
+    - name: Review pull request
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        PR_REVIEW_MODEL: ${{ inputs.model }}
+        PR_REVIEW_BASE_URL: ${{ inputs.base-url }}
+      run: |
+        ARGS=(review --pr "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}")
+        if [ -n "${{ inputs.fail-on }}" ]; then ARGS+=(--fail-on "${{ inputs.fail-on }}"); fi
+        if [ -n "${{ inputs.config-path }}" ]; then ARGS+=(--config "${{ inputs.config-path }}"); fi
+        if [ "${{ inputs.post-comments }}" = "true" ]; then ARGS+=(--post); fi
+        node "${{ github.action_path }}/dist/cli.js" "${ARGS[@]}"

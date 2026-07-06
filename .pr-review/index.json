@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-06T05:41:02.857Z",
+  "generatedAt": "2026-07-06T05:45:52.026Z",
   "files": {
     "src/cli.ts": {
       "hash": "6aad0f36d76cb69c6b4be518598f759cfcee7ce2",
@@ -90,7 +90,7 @@
       ]
     },
     "src/config.ts": {
-      "hash": "ef3f0f3c6c31621ad3d3c3fca61a4dee1a643956",
+      "hash": "4e24c95fac865a6ce5523efff3a1a5a420e4faa9",
       "summary": "",
       "symbols": [
         "export const DEFAULT_IGNORE",
@@ -276,6 +276,60 @@
         "export interface ReviewResult"
       ],
       "imports": []
+    },
+    "test/config.test.ts": {
+      "hash": "4efcb1e23e2b78780ea7aa9a533b57fcd397e67d",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/config.ts"
+      ]
+    },
+    "test/diff-parse.test.ts": {
+      "hash": "6b477be45e8038d5eb0db59e732e0365a728dd5e",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/diff/parse.ts"
+      ]
+    },
+    "test/graph.test.ts": {
+      "hash": "787ef4da7f8b1ee4e395a64975fe0dd7a1198122",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/codemap/graph.ts",
+        "src/types.ts"
+      ]
+    },
+    "test/report.test.ts": {
+      "hash": "4dbcac3bfaa00f73efaf758634208698f914c929",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/report/cli.ts",
+        "src/types.ts"
+      ]
+    },
+    "test/review.test.ts": {
+      "hash": "eb120a37a019fa7e3b3f4c5d49d89df62bc203e0",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/config.ts",
+        "src/llm/client.ts",
+        "src/review.ts"
+      ]
+    },
+    "test/schema.test.ts": {
+      "hash": "4ca8fcad34132511dca89415f8ea86d08e00bae7",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/config.ts",
+        "src/llm/schema.ts",
+        "src/types.ts"
+      ]
     }
   }
 }

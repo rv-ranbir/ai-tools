@@ -1,0 +1,26 @@
+# Example .pr-review.yml — place at the root of the consuming repository.
+# Every key is optional; these are the defaults unless noted.
+
+# Fail the CI check when any finding is at or above this severity.
+fail_on: high            # critical | high | medium | low | info
+
+# Drop findings the model rated below this confidence (0..1).
+min_confidence: 0.5
+
+# Paths excluded from review AND from the codemap index (glob patterns,
+# merged with built-in defaults like node_modules/, dist/, lockfiles).
+ignore:
+  - "**/*.gen.ts"
+  - "docs/**"
+
+# Token budget for repo context injected into the review prompt.
+context_token_budget: 8000
+
+# Free-text instructions appended to the review prompt.
+custom_instructions: |
+  Flag missing JSDoc on exported functions.
+  We use dependency injection — flag direct instantiation of services.
+
+# Disable finding categories entirely.
+categories:
+  naming: false

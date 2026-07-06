@@ -42,7 +42,7 @@ const configSchema = z
     ignore: z.array(z.string()).optional(),
     context_token_budget: z.number().int().positive().optional(),
     custom_instructions: z.string().optional(),
-    categories: z.record(z.enum(CATEGORIES as [string, ...string[]]), z.boolean()).optional(),
+    categories: z.partialRecord(z.enum(CATEGORIES as [string, ...string[]]), z.boolean()).optional(),
   })
   .strict();
 

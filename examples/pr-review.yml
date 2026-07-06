@@ -1,0 +1,23 @@
+# Copy to .github/workflows/pr-review.yml in the consuming repository.
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review PR
+        uses: YOUR_GITHUB_USERNAME/pr-review-agent@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Or another provider:
+          # openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          # model: anthropic/claude-sonnet-4.5
+          fail-on: high

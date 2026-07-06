@@ -1,0 +1,44 @@
+# Copy to .github/workflows/update-index.yml in the consuming repository.
+# Keeps the codemap (.pr-review/index.json) current: after every merge to main,
+# only the files changed by that merge are re-indexed and re-summarized, then
+# the updated index is committed back. Subsequent PR reviews use this memory.
+name: Update Review Codemap
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    # Skip the bot's own commits.
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pr-review-agent
+        run: npm install -g YOUR_GITHUB_USERNAME/pr-review-agent  # or: npm i -g pr-review-agent
+
+      - name: Update codemap incrementally
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: pr-review index
+
+      - name: Commit updated index
+        run: |
+          if git diff --quiet -- .pr-review/index.json; then
+            echo "Codemap unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .pr-review/index.json
+          git commit -m "chore: update review codemap [skip ci]"
+          git push
