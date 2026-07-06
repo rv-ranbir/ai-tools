@@ -2,7 +2,7 @@ name: "PR Review Agent"
 description: >-
   LLM-powered pull request review with whole-repo context. Posts inline review
   comments on changed lines and fails the check on high-severity findings.
-author: "pr-review-agent"
+author: "repomind"
 branding:
   icon: "eye"
   color: "purple"

@@ -22,7 +22,7 @@ pipelines:
           script:
             # Install the CLI. Pick one:
             #   from npm (once published):        npm install -g pr-review-agent
-            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/pr-review-agent.git
+            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/repomind.git
             - npm install -g pr-review-agent
             - pr-review review --post --fail-on high
           artifacts:

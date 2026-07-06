@@ -24,7 +24,7 @@ jobs:
           node-version: 20
 
       - name: Install pr-review-agent
-        run: npm install -g YOUR_GITHUB_USERNAME/pr-review-agent  # or: npm i -g pr-review-agent
+        run: npm install -g YOUR_GITHUB_USERNAME/repomind  # or: npm i -g pr-review-agent
 
       - name: Update codemap incrementally
         env:

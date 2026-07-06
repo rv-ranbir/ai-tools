@@ -1,7 +1,7 @@
-# pr-review-agent
+# repomind
 
-**LLM-powered pull request review with whole-repository context.**
-A CLI + GitHub Action that reviews diffs the way a senior engineer would — knowing the codebase, not just the patch.
+**Persistent repository memory for AI tools — and the PR review agent built on it.**
+An index of your whole codebase that any AI assistant can query, plus a CLI + GitHub Action that reviews pull requests the way a senior engineer would: knowing the codebase, not just the patch.
 
 Two packages, one ecosystem:
 
@@ -108,7 +108,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: YOUR_GITHUB_USERNAME/pr-review-agent@v1
+      - uses: YOUR_GITHUB_USERNAME/repomind@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           fail-on: high

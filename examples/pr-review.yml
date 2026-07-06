@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Review PR
-        uses: YOUR_GITHUB_USERNAME/pr-review-agent@v1
+        uses: YOUR_GITHUB_USERNAME/repomind@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Or another provider:
