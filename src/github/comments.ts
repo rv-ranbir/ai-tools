@@ -4,7 +4,7 @@ import type { Finding, ReviewResult, Severity } from "../types.js";
 
 export const AGENT_MARKER = "<!-- pr-review-agent -->";
 
-const SEVERITY_EMOJI: Record<Severity, string> = {
+export const SEVERITY_EMOJI: Record<Severity, string> = {
   critical: "🟥",
   high: "🔴",
   medium: "🟡",

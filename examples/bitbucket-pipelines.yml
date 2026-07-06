@@ -1,19 +1,17 @@
 # Copy to bitbucket-pipelines.yml at the root of the consuming Bitbucket repository.
 #
-# Setup:
-#   1. Repository settings -> Repository variables:
-#        ANTHROPIC_API_KEY (secured)   — or OPENROUTER_API_KEY / OPENAI_API_KEY
-#                                        plus PR_REVIEW_MODEL for non-Anthropic providers
-#   2. Commit this file. The review step runs on every pull request and fails
-#      the pipeline when findings reach the fail_on threshold (.pr-review.yml
-#      or --fail-on). pr-review-report.json is kept as a build artifact.
+# Setup — Repository settings -> Repository variables:
+#   ANTHROPIC_API_KEY (secured)   — or OPENROUTER_API_KEY / OPENAI_API_KEY
+#                                   plus PR_REVIEW_MODEL for non-Anthropic providers
+#   BITBUCKET_TOKEN   (secured)   — repository access token with the
+#                                   pullrequest:write scope, used by --post to
+#                                   create inline PR comments
 #
-# Note: inline PR comment posting (--post) is GitHub-only today. On Bitbucket
-# the review gates the pipeline and the full findings are in the report artifact
-# and the step log.
-
-clone:
-  depth: full   # the review diffs against the destination branch's merge-base
+# The review step runs on every pull request: it fetches the PR diff from the
+# Bitbucket API (workspace/repo/PR id are auto-detected from Pipelines env
+# vars), posts findings as inline comments on the changed lines, and fails the
+# pipeline when findings reach the fail_on threshold (.pr-review.yml or
+# --fail-on). pr-review-report.json is kept as a build artifact.
 
 pipelines:
   pull-requests:
@@ -26,8 +24,7 @@ pipelines:
             #   from npm (once published):        npm install -g pr-review-agent
             #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/pr-review-agent.git
             - npm install -g pr-review-agent
-            - git fetch origin "$BITBUCKET_PR_DESTINATION_BRANCH"
-            - pr-review review --base "origin/$BITBUCKET_PR_DESTINATION_BRANCH" --fail-on high
+            - pr-review review --post --fail-on high
           artifacts:
             - pr-review-report.json
 

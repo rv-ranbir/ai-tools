@@ -1,12 +1,31 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-06T05:45:52.026Z",
+  "generatedAt": "2026-07-06T06:00:24.149Z",
   "files": {
+    "src/bitbucket/comments.ts": {
+      "hash": "3641a3b3bf4dc9207f0954bdbf2b266f63a0535c",
+      "summary": "",
+      "symbols": [
+        "export interface BbRef",
+        "export function resolveBbAuthHeader(): string",
+        "export function resolveBbRef(repoSlug: string | undefined, pr: number | undefined): BbRef",
+        "export async function getBbPrDiff(ref: BbRef): Promise<string>",
+        "export function formatBbCommentBody(f: Finding): string",
+        "export function formatBbSummaryBody(result: ReviewResult, failed: boolean): string",
+        "export interface PostBbReviewOptions",
+        "export async function postBbReview(opts: PostBbReviewOptions): Promise<void>"
+      ],
+      "imports": [
+        "src/types.ts",
+        "src/github/comments.ts"
+      ]
+    },
     "src/cli.ts": {
-      "hash": "6aad0f36d76cb69c6b4be518598f759cfcee7ce2",
+      "hash": "789afaa2a2d5f9db86196cfed13dda1980cbc52c",
       "summary": "",
       "symbols": [],
       "imports": [
+        "src/bitbucket/comments.ts",
         "src/codemap/index-command.ts",
         "src/config.ts",
         "src/diff/github.ts",
@@ -139,10 +158,11 @@
       ]
     },
     "src/github/comments.ts": {
-      "hash": "e5aa992504bd540621249511e413b7f080c58b07",
+      "hash": "8f211b9a2a75aca9e18fac1b8094e44f4ce58b07",
       "summary": "",
       "symbols": [
         "export const AGENT_MARKER",
+        "export const SEVERITY_EMOJI",
         "export function formatCommentBody(f: Finding): string",
         "export function formatReviewBody(result: ReviewResult, failed: boolean): string",
         "export interface PostReviewOptions",
@@ -277,6 +297,16 @@
       ],
       "imports": []
     },
+    "test/bitbucket.test.ts": {
+      "hash": "2f9d642cffbf33ba34e178897140478bdecdb58a",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/bitbucket/comments.ts",
+        "src/github/comments.ts",
+        "src/types.ts"
+      ]
+    },
     "test/config.test.ts": {
       "hash": "4efcb1e23e2b78780ea7aa9a533b57fcd397e67d",
       "summary": "",
@@ -300,6 +330,14 @@
       "imports": [
         "src/codemap/graph.ts",
         "src/types.ts"
+      ]
+    },
+    "test/provider.test.ts": {
+      "hash": "95406404788c4b49193fbc1aefbaefcd569b4ec3",
+      "summary": "",
+      "symbols": [],
+      "imports": [
+        "src/llm/client.ts"
       ]
     },
     "test/report.test.ts": {

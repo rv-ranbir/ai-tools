@@ -113,9 +113,9 @@ Then add the **codemap update workflow** so the repo memory stays current after 
 
 Findings are posted as **one PR review** with inline comments scoped to the changed lines only; comments already posted by a previous run are not duplicated on re-push. The check fails only when a finding is at or above `fail-on`.
 
-### 3. Bitbucket (or any other CI)
+### 3. Bitbucket
 
-The CLI is host-agnostic: everything except `--pr`/`--post` works from a plain git clone. On Bitbucket Pipelines, review the PR branch against its destination and let the exit code gate the pipeline — see [`examples/bitbucket-pipelines.yml`](examples/bitbucket-pipelines.yml):
+Bitbucket is supported end-to-end, inline comments included. Inside Bitbucket Pipelines the workspace, repo and PR id are auto-detected from the standard env vars, so the whole integration is one step — see [`examples/bitbucket-pipelines.yml`](examples/bitbucket-pipelines.yml):
 
 ```yaml
 pipelines:
@@ -125,13 +125,14 @@ pipelines:
           image: node:20
           script:
             - npm install -g pr-review-agent
-            - git fetch origin "$BITBUCKET_PR_DESTINATION_BRANCH"
-            - pr-review review --base "origin/$BITBUCKET_PR_DESTINATION_BRANCH" --fail-on high
+            - pr-review review --post --fail-on high
           artifacts:
             - pr-review-report.json
 ```
 
-Set `ANTHROPIC_API_KEY` (or another provider's key) as a secured repository variable. Inline PR comment posting is GitHub-only today; on Bitbucket the findings live in the step log and the JSON artifact.
+Secured repository variables: `ANTHROPIC_API_KEY` (or another provider's key), plus `BITBUCKET_TOKEN` — a repository access token with the `pullrequest:write` scope — for `--post`. An app password works too (`BITBUCKET_USERNAME` + `BITBUCKET_APP_PASSWORD`).
+
+Findings land as inline comments anchored to the changed lines (suggestions rendered as code fences — Bitbucket has no suggestion blocks), plus one summary comment; re-runs skip comments already posted. Outside Pipelines, target a PR explicitly: `pr-review review --host bitbucket --repo workspace/repo_slug --pr 7 --post`.
 
 ### 4. Configuration (`.pr-review.yml`)
 

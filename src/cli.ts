@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
+import { getBbPrDiff, postBbReview, resolveBbRef, type BbRef } from "./bitbucket/comments.js";
 import { runIndex } from "./codemap/index-command.js";
 import { loadConfig } from "./config.js";
 import { getPrDiff, getPrHeadSha, makeOctokit, parseRepoSlug, type PrRef } from "./diff/github.js";
@@ -49,10 +50,17 @@ program
   .description("Review a diff (local branch, staged changes, or a GitHub PR)")
   .option("--staged", "review staged changes instead of branch vs base", false)
   .option("--base <ref>", "base ref for the local diff (default: auto-detected origin/main)")
-  .option("--pr <number>", "GitHub PR number to review", (v) => parseInt(v, 10))
-  .option("--repo <owner/name>", "GitHub repository (default: GITHUB_REPOSITORY env var)")
+  .option("--pr <number>", "pull request number/id to review", (v) => parseInt(v, 10))
+  .option(
+    "--repo <owner/name>",
+    "repository (GitHub owner/name or Bitbucket workspace/repo_slug; default from CI env vars)",
+  )
+  .option(
+    "--host <host>",
+    "github | bitbucket (default: bitbucket inside Bitbucket Pipelines, else github)",
+  )
   .option("--json <path>", "write findings JSON to this path", "pr-review-report.json")
-  .option("--post", "post findings as PR review comments (requires --pr and GITHUB_TOKEN)", false)
+  .option("--post", "post findings as inline PR review comments", false)
   .option("--fail-on <severity>", `exit 1 at/above this severity (${SEVERITIES.join("|")}); overrides config`)
   .option("--no-context", "review the diff without codemap context")
   .option("--dir <path>", "repository root", process.cwd())
@@ -67,12 +75,26 @@ program
       config.fail_on = opts.failOn as Severity;
     }
 
+    const env = process.env;
+    const host: "github" | "bitbucket" =
+      opts.host ?? (env.BITBUCKET_WORKSPACE || env.BITBUCKET_PR_ID ? "bitbucket" : "github");
+    if (host !== "github" && host !== "bitbucket") {
+      throw new Error(`--host must be github or bitbucket, got "${opts.host}".`);
+    }
+    const bbPrAvailable = host === "bitbucket" && (opts.pr != null || env.BITBUCKET_PR_ID);
+
     let diffText: string;
     let changeDescription: string;
     let prRef: PrRef | null = null;
     let octokit: ReturnType<typeof makeOctokit> | null = null;
+    let bbRef: BbRef | null = null;
 
-    if (opts.pr != null) {
+    if (bbPrAvailable) {
+      bbRef = resolveBbRef(opts.repo, opts.pr);
+      log(`Fetching diff for ${bbRef.workspace}/${bbRef.repoSlug} PR #${bbRef.prId} (Bitbucket)…`);
+      diffText = await getBbPrDiff(bbRef);
+      changeDescription = `PR #${bbRef.prId} in ${bbRef.workspace}/${bbRef.repoSlug}`;
+    } else if (opts.pr != null) {
       const slug = opts.repo ?? process.env.GITHUB_REPOSITORY;
       if (!slug) throw new Error("Pass --repo owner/name or set GITHUB_REPOSITORY when using --pr.");
       octokit = makeOctokit(process.env.GITHUB_TOKEN);
@@ -117,9 +139,14 @@ program
     const failed = shouldFail(result.findings, config.fail_on);
 
     if (opts.post) {
-      if (!prRef || !octokit) throw new Error("--post requires --pr.");
-      const headSha = await getPrHeadSha(octokit, prRef);
-      await postReview({ octokit, pr: prRef, headSha, result, failed, log });
+      if (bbRef) {
+        await postBbReview({ ref: bbRef, result, failed, log });
+      } else if (prRef && octokit) {
+        const headSha = await getPrHeadSha(octokit, prRef);
+        await postReview({ octokit, pr: prRef, headSha, result, failed, log });
+      } else {
+        throw new Error("--post requires a PR (--pr, or Bitbucket Pipelines env vars).");
+      }
     }
 
     if (failed) {
