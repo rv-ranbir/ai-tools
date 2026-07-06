@@ -1,0 +1,52 @@
+# Copy to bitbucket-pipelines.yml at the root of the consuming Bitbucket repository.
+#
+# Setup:
+#   1. Repository settings -> Repository variables:
+#        ANTHROPIC_API_KEY (secured)   — or OPENROUTER_API_KEY / OPENAI_API_KEY
+#                                        plus PR_REVIEW_MODEL for non-Anthropic providers
+#   2. Commit this file. The review step runs on every pull request and fails
+#      the pipeline when findings reach the fail_on threshold (.pr-review.yml
+#      or --fail-on). pr-review-report.json is kept as a build artifact.
+#
+# Note: inline PR comment posting (--post) is GitHub-only today. On Bitbucket
+# the review gates the pipeline and the full findings are in the report artifact
+# and the step log.
+
+clone:
+  depth: full   # the review diffs against the destination branch's merge-base
+
+pipelines:
+  pull-requests:
+    "**":
+      - step:
+          name: PR Review Agent
+          image: node:20
+          script:
+            # Install the CLI. Pick one:
+            #   from npm (once published):        npm install -g pr-review-agent
+            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/pr-review-agent.git
+            - npm install -g pr-review-agent
+            - git fetch origin "$BITBUCKET_PR_DESTINATION_BRANCH"
+            - pr-review review --base "origin/$BITBUCKET_PR_DESTINATION_BRANCH" --fail-on high
+          artifacts:
+            - pr-review-report.json
+
+  branches:
+    main:
+      - step:
+          name: Update review codemap
+          image: node:20
+          script:
+            - npm install -g pr-review-agent
+            - pr-review index
+            # Push the refreshed memory back. Requires repo write access for the
+            # pipeline (Repository settings -> Pipelines -> enable write access,
+            # or an app password in a secured variable).
+            - |
+              if ! git diff --quiet -- .pr-review/index.json; then
+                git config user.name "pipelines-bot"
+                git config user.email "pipelines-bot@users.noreply.bitbucket.org"
+                git add .pr-review/index.json
+                git commit -m "chore: update review codemap [skip ci]"
+                git push origin main
+              fi

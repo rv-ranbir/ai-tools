@@ -113,7 +113,27 @@ Then add the **codemap update workflow** so the repo memory stays current after 
 
 Findings are posted as **one PR review** with inline comments scoped to the changed lines only; comments already posted by a previous run are not duplicated on re-push. The check fails only when a finding is at or above `fail-on`.
 
-### 3. Configuration (`.pr-review.yml`)
+### 3. Bitbucket (or any other CI)
+
+The CLI is host-agnostic: everything except `--pr`/`--post` works from a plain git clone. On Bitbucket Pipelines, review the PR branch against its destination and let the exit code gate the pipeline — see [`examples/bitbucket-pipelines.yml`](examples/bitbucket-pipelines.yml):
+
+```yaml
+pipelines:
+  pull-requests:
+    "**":
+      - step:
+          image: node:20
+          script:
+            - npm install -g pr-review-agent
+            - git fetch origin "$BITBUCKET_PR_DESTINATION_BRANCH"
+            - pr-review review --base "origin/$BITBUCKET_PR_DESTINATION_BRANCH" --fail-on high
+          artifacts:
+            - pr-review-report.json
+```
+
+Set `ANTHROPIC_API_KEY` (or another provider's key) as a secured repository variable. Inline PR comment posting is GitHub-only today; on Bitbucket the findings live in the step log and the JSON artifact.
+
+### 4. Configuration (`.pr-review.yml`)
 
 Place at the consuming repo's root — see [`examples/.pr-review.yml`](examples/.pr-review.yml):
 
