@@ -1,7 +1,7 @@
 # Release guide
 
-Two independent releases, do in this order: **`codengram` first** (`secondpair`
-depends on it), then `secondpair`.
+`codengram` and `secondpair` use synchronized versions. A semantic-version tag
+starts the automated npm and GitHub release workflow.
 
 ## 0. Before the first public commit
 
@@ -14,56 +14,66 @@ own identity.
 Checklist:
 - [x] `LICENSE` added (MIT)
 - [x] `repository`/`author`/`homepage`/`bugs`/`keywords` added to both `package.json`
-- [x] `secondpair`'s `codengram` dependency pinned to `^0.1.0` (was `*` — fine inside the npm workspace, unresolvable for an outside installer)
+- [x] `secondpair`'s `codengram` dependency pinned to the synchronized package version
 - [x] Secrets scan: no real keys in tracked files (only redaction-test fixtures, obviously fake — `AKIAIOSFODNN7EXAMPLE` etc.); `.cursor-key` is gitignored and untracked
 - [x] `.claude/settings.local.json` and `docs/superpowers/` untracked + gitignored (internal dev-process notes, not user-facing)
-- [x] `npm run typecheck && npm test` — clean, 147 tests passing
+- [x] `npm run typecheck && npm test` — clean, 149 tests passing
 - [ ] Decide npm scope: unscoped (`codengram`, `secondpair` — check name isn't taken) or scoped (`@you/codengram`)
 - [ ] `npm whoami` — confirm logged into the right npm account
 - [ ] Create the public GitHub repo, push
 - [ ] Fill the "screenshot goes here" placeholder in root `README.md`
+- [ ] Add an npm automation token as the repository Actions secret `NPM_TOKEN`
 
-## 1. Publish to npm (the CLI/library "tool")
+## 1. Automated npm and GitHub release
+
+Prepare one reviewed change that:
+
+1. Sets both package versions to the same semantic version.
+2. Sets `secondpair`'s `codengram` dependency to `^<that version>`.
+3. Passes CI.
+
+`npm run security` must pass with zero known vulnerabilities. It also proves
+that `codengram` and `secondpair` resolve as local workspace links.
+`npm run security:consumers` packs both packages, installs the tarballs in
+clean temporary projects with no consumer override, verifies that the bundled
+MCP SDK resolves `@hono/node-server@2.0.12`, and requires each consumer's
+`npm audit --json` total to be zero.
+
+Push a matching tag such as `v1.2.3` or prerelease tag such as
+`v1.2.3-beta.1`. The tag must point at the reviewed commit. Floating tags such
+as `v1` do not trigger npm publishing.
+
+The release workflow installs and validates dependencies without credentials,
+checks all three versions/ranges, explicitly builds both packages, and uploads
+the packed tarballs. A separate privileged job downloads only those tarballs,
+publishes `codengram` before `secondpair`, then creates the GitHub Release.
+On retry, an existing npm version is skipped only when its registry SHA-1
+matches the validated tarball; a mismatch aborts the synchronized release.
+GitHub Releases that already exist are skipped.
+Prereleases use npm's `next` dist-tag and GitHub's prerelease flag; stable
+versions use npm's `latest` dist-tag.
+
+Before pushing a tag, inspect the package payloads locally:
 
 ```bash
-npm install
-npm run build          # tsc -b, both packages → dist/
-npm test
-
-# codengram first — secondpair depends on it
-cd packages/codengram
-npm version patch      # or minor/major — bumps 0.1.0
-npm publish --access public
-
-cd ../secondpair
-# bump the codengram dependency to match what you just published, if it moved
-npm version patch
-npm publish --access public
+npm ci
+npm run security
+npm run build
+npm run security:consumers
 ```
 
-`files: ["dist"]` in both `package.json` means only `dist/` ships — no `src/`,
-no tests, no docs bloat in the published tarball. Verify what actually gets
-published before the real run:
+After publishing, users can run `npx codengram init` and
+`npx secondpair review --staged`.
 
-```bash
-npm pack --dry-run
-```
-
-After publish, anyone gets the CLI with:
-
-```bash
-npx codengram init
-npx secondpair review --staged
-```
-
-## 2. Publish the GitHub Action
+## 2. Publish the GitHub Action to Marketplace
 
 `action.yml` (root) already defines a composite/Docker action — that's the
-CI-native release path, separate from npm. Once the repo is public:
+CI-native release path. Marketplace's floating major tag is separate from the
+immutable semantic tag that triggers npm publishing:
 
-1. Tag a release: `git tag v1 && git push origin v1` (or `v0.1.0` — Actions
-   convention is a floating major tag like `v1` that you move forward).
-2. GitHub → **Releases** → **Draft a new release** → pick the tag.
+1. After a stable semantic release succeeds, move the matching major tag (for
+   example `v1`) to that reviewed release commit and push it.
+2. GitHub → **Releases** → open the semantic release.
 3. Check **"Publish this Action to the GitHub Marketplace"** (only shown
    once `action.yml` is present at repo root, which it is).
 4. Pick a category (e.g. "Code review", "Continuous integration").
@@ -123,15 +133,3 @@ trusting a hardcoded schema here.
 
 Either way, the skill is a thin wrapper that shells out to the npm-published
 `secondpair`/`codengram` CLIs from step 1 — publish those first.
-
-## Known non-blocking issue
-
-`npm audit`: 9 vulnerabilities (1 critical) — all transitive **dev**
-dependencies (`vitest`/`vite`/`esbuild`, the MCP SDK's `@hono/node-server`,
-`postcss`). None are in the dependency tree of the published packages
-(`files: ["dist"]` excludes them; they're monorepo-root devDependencies).
-The critical one (`vitest`'s UI-server arbitrary file read) only applies if
-someone runs `vitest --ui` with the UI server exposed — not used by any
-script here. Fixable with `npm audit fix --force`, which bumps vitest to
-v4 (breaking change, would need a test-suite re-run before trusting it) —
-left for a deliberate follow-up, not bundled into this cleanup.
