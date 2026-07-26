@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security check
+        run: npm run security
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Smoke test PR review
+        run: npm run smoke:pr-review
+
+      - name: Verify package versions
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Release tag must be a semantic version prefixed with v." >&2
+            exit 1
+          fi
+
+          tag_version="${GITHUB_REF_NAME#v}"
+          codengram_version="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/codengram/package.json', 'utf8')).version")"
+          secondpair_version="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/secondpair/package.json', 'utf8')).version")"
+          codengram_range="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/secondpair/package.json', 'utf8')).dependencies.codengram")"
+
+          if [[ "$tag_version" != "$codengram_version" ||
+                "$tag_version" != "$secondpair_version" ||
+                "$codengram_range" != "^$tag_version" ]]; then
+            echo "Tag $tag_version, package versions, and secondpair codengram range ^$tag_version must match." >&2
+            exit 1
+          fi
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Pack and verify consumers
+        run: |
+          mkdir release-artifacts
+          npm run security:consumers -- release-artifacts
+
+      - name: Upload package tarballs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-packages
+          path: release-artifacts/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20.19.0
+          registry-url: https://registry.npmjs.org
+
+      - name: Download package tarballs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-packages
+          path: release-artifacts
+
+      - name: Verify existing npm artifacts
+        id: existing
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+
+          for package in codengram secondpair; do
+            tarball="release-artifacts/$package-$version.tgz"
+            error_file="$(mktemp)"
+            trap 'rm -f "$error_file"' EXIT
+
+            if remote_json="$(npm view "$package@$version" dist.shasum --json 2>"$error_file")"; then
+              if ! remote_shasum="$(node -e 'try { const value = JSON.parse(process.argv[1]); if (typeof value !== "string") process.exit(1); process.stdout.write(value); } catch { process.exit(1); }' "$remote_json")"; then
+                echo "npm returned malformed dist.shasum JSON for $package@$version:" >&2
+                printf '%s\n' "$remote_json" >&2
+                exit 1
+              fi
+              local_shasum="$(sha1sum "$tarball" | cut -d " " -f 1)"
+              if [[ -z "$remote_shasum" || "$remote_shasum" != "$local_shasum" ]]; then
+                echo "$package@$version exists but does not match the validated tarball." >&2
+                exit 1
+              fi
+              echo "$package=true" >> "$GITHUB_OUTPUT"
+            elif node -e 'try { const error = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")); if (error?.error?.code !== "E404") process.exit(1); } catch { process.exit(1); }' "$error_file"; then
+              echo "$package=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "npm view failed for $package@$version:" >&2
+              cat "$error_file" >&2
+              exit 1
+            fi
+
+            rm -f "$error_file"
+            trap - EXIT
+          done
+
+      - name: Select release channel
+        id: release
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            echo "dist-tag=next" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist-tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish codengram
+        if: steps.existing.outputs.codengram != 'true'
+        run: |
+          npm publish "release-artifacts/codengram-${GITHUB_REF_NAME#v}.tgz" \
+            --access public --provenance --tag "${{ steps.release.outputs.dist-tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish secondpair
+        if: steps.existing.outputs.secondpair != 'true'
+        run: |
+          npm publish "release-artifacts/secondpair-${GITHUB_REF_NAME#v}.tgz" \
+            --access public --provenance --tag "${{ steps.release.outputs.dist-tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null; then
+            echo "GitHub Release $GITHUB_REF_NAME already exists; skipping."
+          else
+            args=(--generate-notes --verify-tag)
+            if [[ "${{ steps.release.outputs.prerelease }}" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "$GITHUB_REF_NAME" "${args[@]}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
