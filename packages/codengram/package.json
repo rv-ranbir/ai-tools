@@ -52,5 +52,13 @@
     "web-tree-sitter-modern": "npm:web-tree-sitter@0.26.11",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
-  }
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": {
+      "@hono/node-server": "2.0.12"
+    }
+  },
+  "bundleDependencies": [
+    "@modelcontextprotocol/sdk"
+  ]
 }
