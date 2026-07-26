@@ -16,6 +16,10 @@ ignore:
 # Token budget for repo context injected into the review prompt.
 context_token_budget: 8000
 
+# Inline the full source of the top-N related files (importers first) into the
+# prompt, on top of the summary/symbol context. 0 disables.
+context_snippets: 3
+
 # Free-text instructions appended to the review prompt.
 custom_instructions: |
   Flag missing JSDoc on exported functions.
@@ -24,3 +28,25 @@ custom_instructions: |
 # Disable finding categories entirely.
 categories:
   naming: false
+
+# Sampling temperature. OpenAI-compatible providers already default to 0;
+# setting this also forces it on Anthropic (which disables adaptive thinking).
+# temperature: 0
+
+# Caps against pad-spam: beyond these, lowest-confidence findings are dropped.
+limits:
+  max_findings_per_file: 5
+  max_total: 30
+
+# Second drop-only LLM pass that removes findings the model would walk back
+# when challenged. Costs one extra call per review. Default: false.
+self_critique: false
+
+# Redact common secrets before sending diffs and context to the model.
+redact_secrets: true
+
+# Additional JavaScript regular expressions whose matches should be redacted.
+redact_patterns: []
+
+# Persist finding ids marked "won't fix" to .pr-review-suppressions.yml.
+write_suppressions: false

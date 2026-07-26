@@ -1,0 +1,4 @@
+# Copy to repo root as `.pr-review-suppressions.yml`
+# Paste fingerprints from `pr-review-report.json` (`findings[].id`).
+# Suppressed findings are dropped and do not fail CI.
+ids: []

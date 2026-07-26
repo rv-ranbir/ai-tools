@@ -1,7 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/repomind" },
-    { "path": "packages/pr-review-agent" }
+    { "path": "packages/codengram" },
+    { "path": "packages/secondpair" }
   ]
 }

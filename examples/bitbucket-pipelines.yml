@@ -7,11 +7,8 @@
 #                                   pullrequest:write scope, used by --post to
 #                                   create inline PR comments
 #
-# The review step runs on every pull request: it fetches the PR diff from the
-# Bitbucket API (workspace/repo/PR id are auto-detected from Pipelines env
-# vars), posts findings as inline comments on the changed lines, and fails the
-# pipeline when findings reach the fail_on threshold (.pr-review.yml or
-# --fail-on). pr-review-report.json is kept as a build artifact.
+# Brain freshness: use `codengram init` hooks locally (pre-commit / pre-push).
+# Commit `.codengram/index.json`. Do not rely on CI to rebuild the index.
 
 pipelines:
   pull-requests:
@@ -20,30 +17,14 @@ pipelines:
           name: PR Review Agent
           image: node:20
           script:
+            - |
+              if [ ! -f .codengram/index.json ]; then
+                echo "WARNING: .codengram/index.json missing — diff-only review."
+              fi
             # Install the CLI. Pick one:
-            #   from npm (once published):        npm install -g pr-review-agent
-            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/repomind.git
-            - npm install -g pr-review-agent
+            #   from npm (once published):        npm install -g secondpair
+            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/codengram.git
+            - npm install -g secondpair
             - pr-review review --post --fail-on high
           artifacts:
             - pr-review-report.json
-
-  branches:
-    main:
-      - step:
-          name: Update review codemap
-          image: node:20
-          script:
-            - npm install -g pr-review-agent
-            - pr-review index
-            # Push the refreshed memory back. Requires repo write access for the
-            # pipeline (Repository settings -> Pipelines -> enable write access,
-            # or an app password in a secured variable).
-            - |
-              if ! git diff --quiet -- .repomind/index.json; then
-                git config user.name "pipelines-bot"
-                git config user.email "pipelines-bot@users.noreply.bitbucket.org"
-                git add .repomind/index.json
-                git commit -m "chore: update repomind index [skip ci]"
-                git push origin main
-              fi

@@ -1,7 +1,9 @@
-# Copy to .github/workflows/update-index.yml in the consuming repository.
-# Keeps the codemap (.repomind/index.json) current: after every merge to main,
-# only the files changed by that merge are re-indexed and re-summarized, then
-# the updated index is committed back. Subsequent PR reviews use this memory.
+# LEGACY / DISCOURAGED — prefer local `codengram init` hooks (pre-commit / pre-push)
+# so the brain is updated before push. codengram is not a CI product; CI consumers
+# (secondpair) should only *read* the committed `.codengram/index.json`.
+#
+# Copy to .github/workflows/update-index.yml only if you still want CI to rewrite
+# the index after merges to main.
 name: Update Review Codemap
 
 on:
@@ -23,8 +25,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install pr-review-agent
-        run: npm install -g YOUR_GITHUB_USERNAME/repomind  # or: npm i -g pr-review-agent
+      - name: Install secondpair
+        run: npm install -g YOUR_GITHUB_USERNAME/codengram  # or: npm i -g secondpair
 
       - name: Update codemap incrementally
         env:
@@ -33,12 +35,12 @@ jobs:
 
       - name: Commit updated index
         run: |
-          if git diff --quiet -- .repomind/index.json; then
+          if git diff --quiet -- .codengram/index.json; then
             echo "Codemap unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .repomind/index.json
-          git commit -m "chore: update repomind index [skip ci]"
+          git add .codengram/index.json
+          git commit -m "chore: update codengram index [skip ci]"
           git push

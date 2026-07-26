@@ -1,4 +1,16 @@
 # Copy to .github/workflows/pr-review.yml in the consuming repository.
+#
+# Prerequisites:
+#   1. Commit `.codengram/index.json` (from `codengram init` + hooks locally)
+#   2. Store an LLM API key as a repo secret
+#
+# Checkout is required so the action can read the committed brain.
+#
+# Security note: `actions/checkout` on `pull_request` checks out the PR's
+# own content, which means `.pr-review.yml` (redact_patterns, custom
+# instructions) is attacker-controlled for external contributors. Don't
+# put anything in this workflow that trusts PR-supplied config as if it
+# came from a maintainer.
 name: PR Review
 
 on:
@@ -13,8 +25,10 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Review PR
-        uses: YOUR_GITHUB_USERNAME/repomind@v1
+        uses: YOUR_GITHUB_USERNAME/codengram@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Or another provider:

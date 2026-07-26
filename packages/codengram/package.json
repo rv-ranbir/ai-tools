@@ -1,0 +1,56 @@
+{
+  "name": "codengram",
+  "version": "0.1.0",
+  "description": "Persistent, token-efficient repository memory for AI tools: symbols, import graph and LLM summaries per file — CLI, library and MCP server",
+  "type": "module",
+  "bin": {
+    "codengram": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx src/cli.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "author": "rv-ranbir",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rv-ranbir/ai-tools.git",
+    "directory": "packages/codengram"
+  },
+  "homepage": "https://github.com/rv-ranbir/ai-tools/tree/main/packages/codengram#readme",
+  "bugs": "https://github.com/rv-ranbir/ai-tools/issues",
+  "keywords": [
+    "ai",
+    "llm",
+    "codemap",
+    "code-index",
+    "mcp",
+    "mcp-server",
+    "repository-memory",
+    "claude"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@vscode/tree-sitter-wasm": "0.3.1",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "typescript": "^5.6.0",
+    "web-tree-sitter": "0.20.8",
+    "web-tree-sitter-modern": "npm:web-tree-sitter@0.26.11",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  }
+}

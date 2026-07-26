@@ -1,0 +1,49 @@
+{
+  "name": "secondpair",
+  "version": "0.1.0",
+  "description": "LLM-powered pull request reviewer with whole-repo context from a persistent codengram codemap",
+  "type": "module",
+  "bin": {
+    "secondpair": "./dist/cli.js",
+    "pr-review": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "author": "rv-ranbir",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rv-ranbir/ai-tools.git",
+    "directory": "packages/secondpair"
+  },
+  "homepage": "https://github.com/rv-ranbir/ai-tools/tree/main/packages/secondpair#readme",
+  "bugs": "https://github.com/rv-ranbir/ai-tools/issues",
+  "keywords": [
+    "ai",
+    "llm",
+    "pr-review",
+    "code-review",
+    "github-actions",
+    "gitlab-ci",
+    "bitbucket",
+    "claude"
+  ],
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx src/cli.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0",
+    "codengram": "^0.1.0",
+    "yaml": "^2.5.0",
+    "zod": "^4.4.3"
+  }
+}

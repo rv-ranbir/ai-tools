@@ -2,7 +2,7 @@ name: "PR Review Agent"
 description: >-
   LLM-powered pull request review with whole-repo context. Posts inline review
   comments on changed lines and fails the check on high-severity findings.
-author: "repomind"
+author: "codengram"
 branding:
   icon: "eye"
   color: "purple"
@@ -39,19 +39,29 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 20
 
-    - name: Install pr-review-agent
+    - name: Install secondpair
       shell: bash
       run: |
         cd "${{ github.action_path }}"
-        # typescript is a runtime dependency (used by the repomind indexer),
+        # typescript is a runtime dependency (used by the codengram indexer),
         # so a prod install is enough to build with tsc.
         npm ci --omit=dev --ignore-scripts
         npx tsc -b
+
+    - name: Warn if repo brain is missing
+      shell: bash
+      run: |
+        if [ ! -f .codengram/index.json ]; then
+          echo "::warning::.codengram/index.json not found after checkout — reviewing diff-only. Commit an index from \`codengram init\` for whole-repo context."
+        fi
 
     - name: Review pull request
       shell: bash
@@ -67,4 +77,4 @@ runs:
         if [ -n "${{ inputs.fail-on }}" ]; then ARGS+=(--fail-on "${{ inputs.fail-on }}"); fi
         if [ -n "${{ inputs.config-path }}" ]; then ARGS+=(--config "${{ inputs.config-path }}"); fi
         if [ "${{ inputs.post-comments }}" = "true" ]; then ARGS+=(--post); fi
-        node "${{ github.action_path }}/packages/pr-review-agent/dist/cli.js" "${ARGS[@]}"
+        node "${{ github.action_path }}/packages/secondpair/dist/cli.js" "${ARGS[@]}"

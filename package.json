@@ -1,5 +1,5 @@
 {
-  "name": "repomind-monorepo",
+  "name": "ai-tools",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,7 +9,9 @@
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "smoke:pr-review": "node scripts/smoke-pr-review.mjs",
+    "test:pr-review": "vitest run packages/secondpair"
   },
   "engines": {
     "node": ">=20"

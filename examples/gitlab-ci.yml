@@ -1,0 +1,24 @@
+# GitLab CI — PR review gate with inline MR discussions.
+#
+# Prerequisites:
+#   - Commit `.codengram/index.json` from local `codengram init` / hooks
+#   - CI/CD variable for the LLM: ANTHROPIC_API_KEY (or OPENAI_ / OPENROUTER_ / PR_REVIEW_CLI_COMMAND)
+#   - CI/CD variable GITLAB_TOKEN: access token with `api` scope, for --post
+#     (CI_JOB_TOKEN cannot post MR notes; drop --post to only gate + emit JSON)
+
+review:
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - |
+      if [ ! -f .codengram/index.json ]; then
+        echo "WARNING: .codengram/index.json missing — diff-only review."
+      fi
+    - npm install -g secondpair
+    # Project/MR auto-detected from CI_PROJECT_ID / CI_MERGE_REQUEST_IID.
+    - pr-review review --post --fail-on high --json pr-review-report.json
+  artifacts:
+    when: always
+    paths:
+      - pr-review-report.json
