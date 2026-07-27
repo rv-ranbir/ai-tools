@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Portable CI recipe — any pipeline that can run bash + Node 20.
-# Does NOT run codengram index in CI. Expect `.codengram/index.json` committed.
+# Does NOT run repocairn index in CI. Expect `.repocairn/index.json` committed.
 set -euo pipefail
 
 : "${ANTHROPIC_API_KEY:=${OPENAI_API_KEY:-${OPENROUTER_API_KEY:-}}}"
@@ -22,8 +22,8 @@ else
   npm install -g secondpair
 fi
 
-if [ ! -f .codengram/index.json ]; then
-  echo "WARNING: .codengram/index.json missing — reviewing diff-only. Run \`codengram init\` locally and commit the index." >&2
+if [ ! -f .repocairn/index.json ]; then
+  echo "WARNING: .repocairn/index.json missing — reviewing diff-only. Run \`repocairn init\` locally and commit the index." >&2
 fi
 
 ARGS=(review --fail-on "${FAIL_ON:-high}" --json pr-review-report.json)

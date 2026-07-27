@@ -2,7 +2,7 @@ name: "PR Review Agent"
 description: >-
   LLM-powered pull request review with whole-repo context. Posts inline review
   comments on changed lines and fails the check on high-severity findings.
-author: "codengram"
+author: "repocairn"
 branding:
   icon: "eye"
   color: "purple"
@@ -51,7 +51,7 @@ runs:
       shell: bash
       run: |
         cd "${{ github.action_path }}"
-        # typescript is a runtime dependency (used by the codengram indexer),
+        # typescript is a runtime dependency (used by the repocairn indexer),
         # so a prod install is enough to build with tsc.
         npm ci --omit=dev --ignore-scripts
         npx tsc -b
@@ -59,8 +59,8 @@ runs:
     - name: Warn if repo brain is missing
       shell: bash
       run: |
-        if [ ! -f .codengram/index.json ]; then
-          echo "::warning::.codengram/index.json not found after checkout — reviewing diff-only. Commit an index from \`codengram init\` for whole-repo context."
+        if [ ! -f .repocairn/index.json ]; then
+          echo "::warning::.repocairn/index.json not found after checkout — reviewing diff-only. Commit an index from \`repocairn init\` for whole-repo context."
         fi
 
     - name: Review pull request

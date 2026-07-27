@@ -250,19 +250,19 @@
         "packages/secondpair/src/types.ts"
       ]
     },
-    "packages/codengram/src/cli.ts": {
+    "packages/repocairn/src/cli.ts": {
       "hash": "0b5ee0cb0feff2d55595ad9275f165ff66a8f2fd",
       "summary": "",
       "symbols": [],
       "imports": [
-        "packages/codengram/src/graph.ts",
-        "packages/codengram/src/index-command.ts",
-        "packages/codengram/src/mcp.ts",
-        "packages/codengram/src/query.ts",
-        "packages/codengram/src/store.ts"
+        "packages/repocairn/src/graph.ts",
+        "packages/repocairn/src/index-command.ts",
+        "packages/repocairn/src/mcp.ts",
+        "packages/repocairn/src/query.ts",
+        "packages/repocairn/src/store.ts"
       ]
     },
-    "packages/codengram/src/graph.ts": {
+    "packages/repocairn/src/graph.ts": {
       "hash": "05c93840ae0f1be9d87319367d53a96065f310fc",
       "summary": "",
       "symbols": [
@@ -271,10 +271,10 @@
         "export function selectContext("
       ],
       "imports": [
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/ignore.ts": {
+    "packages/repocairn/src/ignore.ts": {
       "hash": "8cc7ec5b8b8ce70396a532d90980b9b97128aa3e",
       "summary": "",
       "symbols": [
@@ -284,7 +284,7 @@
       ],
       "imports": []
     },
-    "packages/codengram/src/index-command.ts": {
+    "packages/repocairn/src/index-command.ts": {
       "hash": "e47b8c416260969d8b3c6aa657172fa9516929dc",
       "summary": "",
       "symbols": [
@@ -293,30 +293,30 @@
         "export async function runIndex(opts: IndexOptions): Promise<IndexStats>"
       ],
       "imports": [
-        "packages/codengram/src/types.ts",
-        "packages/codengram/src/indexer.ts",
-        "packages/codengram/src/store.ts",
-        "packages/codengram/src/summarize.ts"
+        "packages/repocairn/src/types.ts",
+        "packages/repocairn/src/indexer.ts",
+        "packages/repocairn/src/store.ts",
+        "packages/repocairn/src/summarize.ts"
       ]
     },
-    "packages/codengram/src/index.ts": {
+    "packages/repocairn/src/index.ts": {
       "hash": "8784f97867e3a8829765779a5c98bbd64c1ac51a",
       "summary": "",
       "symbols": [],
       "imports": [
-        "packages/codengram/src/graph.ts",
-        "packages/codengram/src/index-command.ts",
-        "packages/codengram/src/indexer.ts",
-        "packages/codengram/src/ignore.ts",
-        "packages/codengram/src/llm.ts",
-        "packages/codengram/src/mcp.ts",
-        "packages/codengram/src/query.ts",
-        "packages/codengram/src/store.ts",
-        "packages/codengram/src/summarize.ts",
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/graph.ts",
+        "packages/repocairn/src/index-command.ts",
+        "packages/repocairn/src/indexer.ts",
+        "packages/repocairn/src/ignore.ts",
+        "packages/repocairn/src/llm.ts",
+        "packages/repocairn/src/mcp.ts",
+        "packages/repocairn/src/query.ts",
+        "packages/repocairn/src/store.ts",
+        "packages/repocairn/src/summarize.ts",
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/indexer.ts": {
+    "packages/repocairn/src/indexer.ts": {
       "hash": "b20af938a5f7966969eecb50a07fa8d7f1d71790",
       "summary": "",
       "symbols": [
@@ -327,11 +327,11 @@
         "export function extractFileFacts("
       ],
       "imports": [
-        "packages/codengram/src/ignore.ts",
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/ignore.ts",
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/llm.ts": {
+    "packages/repocairn/src/llm.ts": {
       "hash": "4ff598e8b88407ff684ed978ee25603c4a8fb759",
       "summary": "",
       "symbols": [
@@ -347,20 +347,20 @@
       ],
       "imports": []
     },
-    "packages/codengram/src/mcp.ts": {
+    "packages/repocairn/src/mcp.ts": {
       "hash": "a0093d4c63a96984c9c41e0ded1ff6ad40b33744",
       "summary": "",
       "symbols": [
         "export async function runMcpServer(cwd: string): Promise<void>"
       ],
       "imports": [
-        "packages/codengram/src/graph.ts",
-        "packages/codengram/src/query.ts",
-        "packages/codengram/src/store.ts",
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/graph.ts",
+        "packages/repocairn/src/query.ts",
+        "packages/repocairn/src/store.ts",
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/query.ts": {
+    "packages/repocairn/src/query.ts": {
       "hash": "4fb2850d449b4afe66a4b899932ea07d9f2eba7a",
       "summary": "",
       "symbols": [
@@ -370,10 +370,10 @@
         "export function getFileInfo(index: CodemapIndex, path: string): FileInfo | null"
       ],
       "imports": [
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/store.ts": {
+    "packages/repocairn/src/store.ts": {
       "hash": "2d7c46e989556be482767d8ecf84097cc77ed50a",
       "summary": "",
       "symbols": [
@@ -385,10 +385,10 @@
         "export function emptyIndex(): CodemapIndex"
       ],
       "imports": [
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/src/summarize.ts": {
+    "packages/repocairn/src/summarize.ts": {
       "hash": "8d03e9c3ff9b266bde9e8caffc30e0455037b29d",
       "summary": "",
       "symbols": [
@@ -399,10 +399,10 @@
         "export async function summarizeFiles("
       ],
       "imports": [
-        "packages/codengram/src/llm.ts"
+        "packages/repocairn/src/llm.ts"
       ]
     },
-    "packages/codengram/src/types.ts": {
+    "packages/repocairn/src/types.ts": {
       "hash": "bcd32a6e3c2f98f99bef41eff509b6003be40e62",
       "summary": "",
       "symbols": [
@@ -411,30 +411,30 @@
       ],
       "imports": []
     },
-    "packages/codengram/test/graph.test.ts": {
+    "packages/repocairn/test/graph.test.ts": {
       "hash": "ad2669fccad8b4f552ff46042e2d7c2afa920d9f",
       "summary": "",
       "symbols": [],
       "imports": [
-        "packages/codengram/src/graph.ts",
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/graph.ts",
+        "packages/repocairn/src/types.ts"
       ]
     },
-    "packages/codengram/test/provider.test.ts": {
+    "packages/repocairn/test/provider.test.ts": {
       "hash": "89903c266dc8ef2cbfadb49914964dc01c390553",
       "summary": "",
       "symbols": [],
       "imports": [
-        "packages/codengram/src/llm.ts"
+        "packages/repocairn/src/llm.ts"
       ]
     },
-    "packages/codengram/test/query.test.ts": {
+    "packages/repocairn/test/query.test.ts": {
       "hash": "38626f54108d9fa7d2bd04f24a6cb0eafd02e4cb",
       "summary": "",
       "symbols": [],
       "imports": [
-        "packages/codengram/src/query.ts",
-        "packages/codengram/src/types.ts"
+        "packages/repocairn/src/query.ts",
+        "packages/repocairn/src/types.ts"
       ]
     },
     "vitest.config.ts": {
