@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { CodemapIndex } from "./types.js";
 
-export const INDEX_DIR = ".codengram";
+export const INDEX_DIR = ".repocairn";
 export const INDEX_FILE = "index.json";
 
 export function indexPath(cwd: string): string {
@@ -22,7 +22,7 @@ export async function loadIndex(cwd: string): Promise<CodemapIndex | null> {
   if (!existsSync(file)) return null;
   const raw = await readJsonFile<Record<string, unknown>>(file);
   if (raw?.version !== 1 || typeof raw.files !== "object") {
-    throw new Error(`Unrecognized codemap index format in ${file}. Re-run: codengram index --full`);
+    throw new Error(`Unrecognized codemap index format in ${file}. Re-run: repocairn index --full`);
   }
   return raw as unknown as CodemapIndex;
 }

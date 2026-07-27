@@ -6,12 +6,12 @@ import {
 } from "../src/llm.js";
 
 const PROVIDER_ENV_VARS = [
-  "CODENGRAM_PROVIDER",
-  "CODENGRAM_CLI_COMMAND",
+  "REPOCAIRN_PROVIDER",
+  "REPOCAIRN_CLI_COMMAND",
   "PR_REVIEW_CLI_COMMAND",
-  "CODENGRAM_MODEL",
-  "CODENGRAM_BASE_URL",
-  "CODENGRAM_API_KEY",
+  "REPOCAIRN_MODEL",
+  "REPOCAIRN_BASE_URL",
+  "REPOCAIRN_API_KEY",
   "PR_REVIEW_PROVIDER",
   "PR_REVIEW_MODEL",
   "PR_REVIEW_BASE_URL",
@@ -47,13 +47,13 @@ describe("resolveProvider", () => {
     expect(s.apiKey).toBe("sk-or-test");
   });
 
-  it("accepts CODENGRAM_* env vars, taking precedence over PR_REVIEW_*", () => {
+  it("accepts REPOCAIRN_* env vars, taking precedence over PR_REVIEW_*", () => {
     withEnv({
       OPENROUTER_API_KEY: "sk-or-test",
-      CODENGRAM_MODEL: "codengram-model",
+      REPOCAIRN_MODEL: "repocairn-model",
       PR_REVIEW_MODEL: "legacy-model",
     });
-    expect(resolveProvider().model).toBe("codengram-model");
+    expect(resolveProvider().model).toBe("repocairn-model");
   });
 
   it("routes to OpenAI when only OPENAI_API_KEY is set", () => {
@@ -92,7 +92,7 @@ describe("resolveProvider", () => {
 
   it("requires a model for OpenAI-compatible providers", () => {
     withEnv({ OPENAI_API_KEY: "b" });
-    expect(() => resolveProvider()).toThrow(/CODENGRAM_MODEL/);
+    expect(() => resolveProvider()).toThrow(/REPOCAIRN_MODEL/);
   });
 
   it("rejects unknown provider names", () => {
@@ -100,8 +100,8 @@ describe("resolveProvider", () => {
     expect(() => resolveProvider()).toThrow(/Unknown provider "gemini"/);
   });
 
-  it("routes to the cli provider when CODENGRAM_CLI_COMMAND is set", () => {
-    withEnv({ CODENGRAM_CLI_COMMAND: "cursor-agent -p" });
+  it("routes to the cli provider when REPOCAIRN_CLI_COMMAND is set", () => {
+    withEnv({ REPOCAIRN_CLI_COMMAND: "cursor-agent -p" });
     const s = resolveProvider();
     expect(s.provider).toBe("cli");
     expect(s.cliCommand).toBe("cursor-agent -p");
@@ -109,12 +109,12 @@ describe("resolveProvider", () => {
   });
 
   it("explicit provider=cli without a command throws a helpful error", () => {
-    withEnv({ CODENGRAM_PROVIDER: "cli" });
-    expect(() => resolveProvider()).toThrow(/CODENGRAM_CLI_COMMAND/);
+    withEnv({ REPOCAIRN_PROVIDER: "cli" });
+    expect(() => resolveProvider()).toThrow(/REPOCAIRN_CLI_COMMAND/);
   });
 
   it("API keys win over a cli command during auto-detection", () => {
-    withEnv({ ANTHROPIC_API_KEY: "a", CODENGRAM_CLI_COMMAND: "claude -p" });
+    withEnv({ ANTHROPIC_API_KEY: "a", REPOCAIRN_CLI_COMMAND: "claude -p" });
     expect(resolveProvider().provider).toBe("anthropic");
   });
 });

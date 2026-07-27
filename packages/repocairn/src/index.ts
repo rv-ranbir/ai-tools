@@ -9,12 +9,12 @@ export {
 } from "./indexer.js";
 export { DEFAULT_IGNORE, isIgnored, matchesGlob } from "./ignore.js";
 export {
-  DEFAULT_CODENGRAM_CONFIG,
-  formatCodengramYml,
-  loadCodengramConfig,
-  mergeCodengramConfig,
-  CODENGRAM_YML,
-  type CodengramConfig,
+  DEFAULT_REPOCAIRN_CONFIG,
+  formatRepoCairnYml,
+  loadRepoCairnConfig,
+  mergeRepoCairnConfig,
+  REPOCAIRN_YML,
+  type RepoCairnConfig,
 } from "./config.js";
 export { runInit, type InitOptions, type InitResult } from "./init.js";
 export { installHooks, runHook, HOOK_MARKER, type HookResult } from "./hooks.js";

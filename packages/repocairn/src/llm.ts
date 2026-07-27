@@ -24,29 +24,29 @@ export const OPENAI_BASE_URL = "https://api.openai.com/v1";
 /**
  * Resolve which LLM provider to call.
  *
- * Explicit: CODENGRAM_PROVIDER=anthropic | openai | openrouter | openai-compatible.
+ * Explicit: REPOCAIRN_PROVIDER=anthropic | openai | openrouter | openai-compatible.
  * Otherwise inferred from which API key env vars are set:
  *   ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN -> Anthropic (official SDK)
  *   OPENROUTER_API_KEY                        -> OpenRouter (openai-compatible)
  *   OPENAI_API_KEY                            -> OpenAI or any compatible endpoint
  * Any OpenAI-compatible endpoint (Cursor, LiteLLM, vLLM, Together, …) works via
- * CODENGRAM_BASE_URL + CODENGRAM_API_KEY.
- * PR_REVIEW_* spellings of every CODENGRAM_* var are accepted as aliases.
+ * REPOCAIRN_BASE_URL + REPOCAIRN_API_KEY.
+ * PR_REVIEW_* spellings of every REPOCAIRN_* var are accepted as aliases.
  */
 export function resolveProvider(): ProviderSettings {
   const env = process.env;
-  const explicit = (env.CODENGRAM_PROVIDER || env.PR_REVIEW_PROVIDER || "").toLowerCase();
-  const model = env.CODENGRAM_MODEL || env.PR_REVIEW_MODEL || env.ANTHROPIC_MODEL || "";
+  const explicit = (env.REPOCAIRN_PROVIDER || env.PR_REVIEW_PROVIDER || "").toLowerCase();
+  const model = env.REPOCAIRN_MODEL || env.PR_REVIEW_MODEL || env.ANTHROPIC_MODEL || "";
 
   const openAiCompatible = (baseUrl: string, apiKey: string): ProviderSettings => {
     if (!model) {
       throw new Error(
-        "Set CODENGRAM_MODEL (or PR_REVIEW_MODEL) when using an OpenAI-compatible provider (e.g. gpt-4o, or anthropic/claude-sonnet-4.5 on OpenRouter).",
+        "Set REPOCAIRN_MODEL (or PR_REVIEW_MODEL) when using an OpenAI-compatible provider (e.g. gpt-4o, or anthropic/claude-sonnet-4.5 on OpenRouter).",
       );
     }
     if (!apiKey) {
       throw new Error(
-        "No API key found for the OpenAI-compatible provider. Set CODENGRAM_API_KEY or PR_REVIEW_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY).",
+        "No API key found for the OpenAI-compatible provider. Set REPOCAIRN_API_KEY or PR_REVIEW_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY).",
       );
     }
     return { provider: "openai-compatible", model, baseUrl, apiKey };
@@ -59,14 +59,14 @@ export function resolveProvider(): ProviderSettings {
     apiKey: "",
   });
 
-  const customBase = env.CODENGRAM_BASE_URL || env.PR_REVIEW_BASE_URL || env.OPENAI_BASE_URL || "";
-  const genericKey = env.CODENGRAM_API_KEY || env.PR_REVIEW_API_KEY || "";
-  const cliCommand = env.CODENGRAM_CLI_COMMAND || env.PR_REVIEW_CLI_COMMAND || "";
+  const customBase = env.REPOCAIRN_BASE_URL || env.PR_REVIEW_BASE_URL || env.OPENAI_BASE_URL || "";
+  const genericKey = env.REPOCAIRN_API_KEY || env.PR_REVIEW_API_KEY || "";
+  const cliCommand = env.REPOCAIRN_CLI_COMMAND || env.PR_REVIEW_CLI_COMMAND || "";
 
   const cli = (): ProviderSettings => {
     if (!cliCommand) {
       throw new Error(
-        'provider "cli" needs CODENGRAM_CLI_COMMAND (or PR_REVIEW_CLI_COMMAND), e.g. "cursor-agent -p" or "claude -p".',
+        'provider "cli" needs REPOCAIRN_CLI_COMMAND (or PR_REVIEW_CLI_COMMAND), e.g. "cursor-agent -p" or "claude -p".',
       );
     }
     const cliModel = cliCommand.split(/\s+/)[0]?.replace(/^["']|["']$/g, "") || "cli";
@@ -90,7 +90,7 @@ export function resolveProvider(): ProviderSettings {
       break;
     default:
       throw new Error(
-        `Unknown provider "${env.CODENGRAM_PROVIDER || env.PR_REVIEW_PROVIDER}". Use anthropic, openai, openrouter, openai-compatible, or cli.`,
+        `Unknown provider "${env.REPOCAIRN_PROVIDER || env.PR_REVIEW_PROVIDER}". Use anthropic, openai, openrouter, openai-compatible, or cli.`,
       );
   }
 

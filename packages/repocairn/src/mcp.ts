@@ -64,17 +64,17 @@ function errorText(s: string) {
   return { content: [{ type: "text" as const, text: s }], isError: true };
 }
 
-/** Run the codengram MCP server on stdio, serving the index in `cwd`. */
+/** Run the repocairn MCP server on stdio, serving the index in `cwd`. */
 export async function runMcpServer(cwd: string): Promise<void> {
   const server = new Server(
-    { name: "codengram", version: "0.1.0" },
+    { name: "repocairn", version: "0.1.0" },
     { capabilities: { tools: {} } },
   );
 
   const requireIndex = async (): Promise<CodemapIndex> => {
     const index = await loadIndex(cwd);
     if (!index) {
-      throw new Error(`No codengram index at ${indexPath(cwd)}. Run \`codengram index\` first.`);
+      throw new Error(`No repocairn index at ${indexPath(cwd)}. Run \`repocairn index\` first.`);
     }
     return index;
   };

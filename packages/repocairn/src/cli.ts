@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
-import { loadCodengramConfig } from "./config.js";
+import { loadRepoCairnConfig } from "./config.js";
 import { selectContext } from "./graph.js";
 import { runHook, type HookPhase } from "./hooks.js";
 import { runIndex } from "./index-command.js";
@@ -20,7 +20,7 @@ const collect = (v: string, acc: string[]) => [...acc, v];
 async function requireIndex(cwd: string) {
   const index = await loadIndex(cwd);
   if (!index) {
-    throw new Error(`No index at ${indexPath(cwd)}. Run \`codengram index\` first.`);
+    throw new Error(`No index at ${indexPath(cwd)}. Run \`repocairn index\` first.`);
   }
   return index;
 }
@@ -32,7 +32,7 @@ function resolveLlmFlag(configLlm: boolean): boolean {
 }
 
 program
-  .name("codengram")
+  .name("repocairn")
   .description(
     "Persistent repository memory for AI tools — symbols, import graph and LLM summaries per file",
   )
@@ -41,7 +41,7 @@ program
 program
   .command("init")
   .description("Write config, install git hooks, and build the first index")
-  .option("--yml", "write .codengram.yml instead of package.json#codengram", false)
+  .option("--yml", "write .repocairn.yml instead of package.json#repocairn", false)
   .option("--no-hooks", "skip installing git hooks")
   .option("--no-index", "skip the initial index build")
   .option("--force", "overwrite existing hooks / config", false)
@@ -58,7 +58,7 @@ program
     for (const s of result.steps) console.log(pc.green(`✔ ${s}`));
     console.log(
       pc.dim(
-        "Next: commit .codengram/index.json so agents and CI can read the brain. Optional: codengram setup",
+        "Next: commit .repocairn/index.json so agents and CI can read the brain. Optional: repocairn setup",
       ),
     );
   });
@@ -93,7 +93,7 @@ program
 
 program
   .command("index")
-  .description("Build or incrementally update the repo index (.codengram/index.json)")
+  .description("Build or incrementally update the repo index (.repocairn/index.json)")
   .option("--full", "re-index every file regardless of content hash", false)
   .option("--llm", "force LLM summaries on (overrides config)")
   .option("--no-llm", "skip LLM summaries (overrides config)")
@@ -101,7 +101,7 @@ program
   .option("--dir <path>", "repository root", process.cwd())
   .action(async (opts) => {
     const cwd = path.resolve(opts.dir);
-    const config = await loadCodengramConfig(cwd);
+    const config = await loadRepoCairnConfig(cwd);
     const llm = resolveLlmFlag(config.llm);
     const ignore = [...config.ignore, ...opts.ignore];
     const stats = await runIndex({ cwd, full: opts.full, llm, ignore, log });
@@ -156,7 +156,7 @@ program
 program
   .command("setup")
   .description(
-    "Detect installed AI tools and wire codengram in: MCP registration, usage rule, skill",
+    "Detect installed AI tools and wire repocairn in: MCP registration, usage rule, skill",
   )
   .option("-t, --target <id>", "set up a specific target, repeatable (skips detection)", collect, [])
   .option("--list", "list known targets")

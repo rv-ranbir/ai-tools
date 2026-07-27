@@ -7,7 +7,7 @@ import { runSetup, TARGETS } from "../src/setup.js";
 let dir: string;
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "codengram-setup-"));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "repocairn-setup-"));
 });
 
 afterEach(async () => {
@@ -29,11 +29,11 @@ describe("runSetup", () => {
     expect(steps).toHaveLength(3);
 
     const mcp = JSON.parse(await fs.readFile(path.join(dir, ".mcp.json"), "utf8"));
-    expect(mcp.mcpServers.codengram).toEqual({ command: "codengram", args: ["mcp"] });
-    expect(await fs.readFile(path.join(dir, "CLAUDE.md"), "utf8")).toContain("codengram:rule");
+    expect(mcp.mcpServers.repocairn).toEqual({ command: "repocairn", args: ["mcp"] });
+    expect(await fs.readFile(path.join(dir, "CLAUDE.md"), "utf8")).toContain("repocairn:rule");
     expect(
-      await fs.readFile(path.join(dir, ".claude", "skills", "codengram", "SKILL.md"), "utf8"),
-    ).toContain("name: codengram");
+      await fs.readFile(path.join(dir, ".claude", "skills", "repocairn", "SKILL.md"), "utf8"),
+    ).toContain("name: repocairn");
   });
 
   it("is idempotent and preserves existing config", async () => {
@@ -52,7 +52,7 @@ describe("runSetup", () => {
     expect(mcp.mcpServers.other).toEqual({ command: "x" });
     const claudeMd = await fs.readFile(path.join(dir, "CLAUDE.md"), "utf8");
     expect(claudeMd).toContain("# My rules");
-    expect(claudeMd.match(/codengram:rule/g)).toHaveLength(1);
+    expect(claudeMd.match(/repocairn:rule/g)).toHaveLength(1);
   });
 
   it("detects multiple tools at once", async () => {
@@ -68,13 +68,13 @@ describe("runSetup", () => {
     const steps = await runSetup(dir, { targets: ["copilot"] });
     expect(steps.length).toBeGreaterThan(0);
     const mcp = JSON.parse(await fs.readFile(path.join(dir, ".vscode", "mcp.json"), "utf8"));
-    expect(mcp.servers.codengram).toBeDefined();
+    expect(mcp.servers.repocairn).toBeDefined();
     expect(mcp.mcpServers).toBeUndefined();
   });
 
   it("writes frontmatter only when creating a fresh dedicated rule file", async () => {
     await runSetup(dir, { targets: ["cursor"] });
-    const rule = await fs.readFile(path.join(dir, ".cursor", "rules", "codengram.mdc"), "utf8");
+    const rule = await fs.readFile(path.join(dir, ".cursor", "rules", "repocairn.mdc"), "utf8");
     expect(rule.startsWith("---\n")).toBe(true);
     expect(rule).toContain("alwaysApply: true");
   });

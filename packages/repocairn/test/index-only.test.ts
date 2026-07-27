@@ -12,7 +12,7 @@ const exec = promisify(execFile);
 let dir: string;
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "codengram-only-"));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "repocairn-only-"));
   await exec("git", ["init"], { cwd: dir });
   await exec("git", ["config", "user.email", "t@t.com"], { cwd: dir });
   await exec("git", ["config", "user.name", "t"], { cwd: dir });

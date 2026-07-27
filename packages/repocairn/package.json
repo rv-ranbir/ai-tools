@@ -1,10 +1,10 @@
 {
-  "name": "codengram",
+  "name": "repocairn",
   "version": "0.1.0",
   "description": "Persistent, token-efficient repository memory for AI tools: symbols, import graph and LLM summaries per file — CLI, library and MCP server",
   "type": "module",
   "bin": {
-    "codengram": "./dist/cli.js"
+    "repocairn": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,9 +26,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rv-ranbir/ai-tools.git",
-    "directory": "packages/codengram"
+    "directory": "packages/repocairn"
   },
-  "homepage": "https://github.com/rv-ranbir/ai-tools/tree/main/packages/codengram#readme",
+  "homepage": "https://github.com/rv-ranbir/ai-tools/tree/main/packages/repocairn#readme",
   "bugs": "https://github.com/rv-ranbir/ai-tools/issues",
   "keywords": [
     "ai",

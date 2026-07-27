@@ -1,7 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/codengram" },
+    { "path": "packages/repocairn" },
     { "path": "packages/secondpair" }
   ]
 }

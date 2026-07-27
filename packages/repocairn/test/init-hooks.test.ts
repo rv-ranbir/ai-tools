@@ -18,7 +18,7 @@ async function git(args: string[]) {
 }
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "codengram-init-"));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "repocairn-init-"));
   await git(["init"]);
   await git(["config", "user.email", "t@t.com"]);
   await git(["config", "user.name", "t"]);
@@ -43,7 +43,7 @@ describe("runInit", () => {
     expect(result.steps.some((s) => s.includes("pre-commit"))).toBe(true);
 
     const pkg = JSON.parse(await fs.readFile(path.join(dir, "package.json"), "utf8"));
-    expect(pkg.codengram.llm).toBe(false);
+    expect(pkg.repocairn.llm).toBe(false);
 
     const hook = await fs.readFile(path.join(dir, ".git", "hooks", "pre-commit"), "utf8");
     expect(hook).toContain(HOOK_MARKER);
@@ -53,9 +53,9 @@ describe("runInit", () => {
     expect(index?.files["src/main.ts"].summary).toBe("");
   });
 
-  it("writes .codengram.yml with --yml", async () => {
+  it("writes .repocairn.yml with --yml", async () => {
     await runInit(dir, { yml: true, noHooks: true, noIndex: true });
-    const yml = await fs.readFile(path.join(dir, ".codengram.yml"), "utf8");
+    const yml = await fs.readFile(path.join(dir, ".repocairn.yml"), "utf8");
     expect(yml).toContain("llm: false");
   });
 });
@@ -78,12 +78,12 @@ describe("listStagedPaths + runHook", () => {
     expect(index?.files["src/extra.ts"]).toBeDefined();
     // pre-commit stages the updated index so the commit carries it
     const { stdout: staged } = await exec("git", ["diff", "--cached", "--name-only"], { cwd: dir });
-    expect(staged).toContain(".codengram/index.json");
+    expect(staged).toContain(".repocairn/index.json");
   });
 
   it("skips when hooks.pre-commit is false", async () => {
     await fs.writeFile(
-      path.join(dir, ".codengram.yml"),
+      path.join(dir, ".repocairn.yml"),
       "hooks:\n  pre-commit: false\n  pre-push: true\nllm: false\n",
     );
     const result = await runHook(dir, "pre-commit");
