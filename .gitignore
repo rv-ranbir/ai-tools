@@ -10,6 +10,7 @@ pr-review-report.json
 # local machine settings — not for public repo
 .claude/settings.local.json
 .cursor/
+.worktrees/
 
 # internal dev-process notes — not user-facing docs
 docs/superpowers/

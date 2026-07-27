@@ -1,6 +1,6 @@
 # Release guide
 
-`codengram` and `secondpair` use synchronized versions. A semantic-version tag
+`repocairn` and `secondpair` use synchronized versions. A semantic-version tag
 starts the automated npm and GitHub release workflow.
 
 ## 0. Before the first public commit
@@ -14,11 +14,11 @@ own identity.
 Checklist:
 - [x] `LICENSE` added (MIT)
 - [x] `repository`/`author`/`homepage`/`bugs`/`keywords` added to both `package.json`
-- [x] `secondpair`'s `codengram` dependency pinned to the synchronized package version
+- [x] `secondpair`'s `repocairn` dependency pinned to the synchronized package version
 - [x] Secrets scan: no real keys in tracked files (only redaction-test fixtures, obviously fake — `AKIAIOSFODNN7EXAMPLE` etc.); `.cursor-key` is gitignored and untracked
 - [x] `.claude/settings.local.json` and `docs/superpowers/` untracked + gitignored (internal dev-process notes, not user-facing)
 - [x] `npm run typecheck && npm test` — clean, 149 tests passing
-- [ ] Decide npm scope: unscoped (`codengram`, `secondpair` — check name isn't taken) or scoped (`@you/codengram`)
+- [ ] Decide npm scope: unscoped (`repocairn`, `secondpair` — check name isn't taken) or scoped (`@you/repocairn`)
 - [ ] `npm whoami` — confirm logged into the right npm account
 - [ ] Create the public GitHub repo, push
 - [ ] Fill the "screenshot goes here" placeholder in root `README.md`
@@ -29,11 +29,11 @@ Checklist:
 Prepare one reviewed change that:
 
 1. Sets both package versions to the same semantic version.
-2. Sets `secondpair`'s `codengram` dependency to `^<that version>`.
+2. Sets `secondpair`'s `repocairn` dependency to `^<that version>`.
 3. Passes CI.
 
 `npm run security` must pass with zero known vulnerabilities. It also proves
-that `codengram` and `secondpair` resolve as local workspace links.
+that `repocairn` and `secondpair` resolve as local workspace links.
 `npm run security:consumers` packs both packages, installs the tarballs in
 clean temporary projects with no consumer override, verifies that the bundled
 MCP SDK resolves `@hono/node-server@2.0.12`, and requires each consumer's
@@ -46,7 +46,7 @@ as `v1` do not trigger npm publishing.
 The release workflow installs and validates dependencies without credentials,
 checks all three versions/ranges, explicitly builds both packages, and uploads
 the packed tarballs. A separate privileged job downloads only those tarballs,
-publishes `codengram` before `secondpair`, then creates the GitHub Release.
+publishes `repocairn` before `secondpair`, then creates the GitHub Release.
 On retry, an existing npm version is skipped only when its registry SHA-1
 matches the validated tarball; a mismatch aborts the synchronized release.
 GitHub Releases that already exist are skipped.
@@ -62,7 +62,7 @@ npm run build
 npm run security:consumers
 ```
 
-After publishing, users can run `npx codengram init` and
+After publishing, users can run `npx repocairn init` and
 `npx secondpair review --staged`.
 
 ## 2. Publish the GitHub Action to Marketplace
@@ -85,15 +85,15 @@ should match.
 
 ## 3. Publish as an MCP server (an "AI tool" for assistants)
 
-`codengram` already ships an MCP server (`src/mcp.ts`, bin `codengram mcp`).
+`repocairn` already ships an MCP server (`src/mcp.ts`, bin `repocairn mcp`).
 Once step 1 is done, any MCP client can add it without a local install:
 
 ```bash
-claude mcp add codengram -- npx codengram mcp
+claude mcp add repocairn -- npx repocairn mcp
 ```
 
 This exposes `get_context`, `search_symbols`, `file_info` over the repo's
-committed `.codengram/index.json` — already documented in root `README.md`
+committed `.repocairn/index.json` — already documented in root `README.md`
 under "How the memory works". Optional extra reach: submit to a community
 MCP registry (e.g. the `modelcontextprotocol/servers` list, or Smithery) by
 following that registry's own PR/submission process — points at your
@@ -132,4 +132,4 @@ versions — check current docs before building this path, rather than
 trusting a hardcoded schema here.
 
 Either way, the skill is a thin wrapper that shells out to the npm-published
-`secondpair`/`codengram` CLIs from step 1 — publish those first.
+`secondpair`/`repocairn` CLIs from step 1 — publish those first.

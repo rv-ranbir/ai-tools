@@ -1,6 +1,6 @@
-# LEGACY / DISCOURAGED — prefer local `codengram init` hooks (pre-commit / pre-push)
-# so the brain is updated before push. codengram is not a CI product; CI consumers
-# (secondpair) should only *read* the committed `.codengram/index.json`.
+# LEGACY / DISCOURAGED — prefer local `repocairn init` hooks (pre-commit / pre-push)
+# so the brain is updated before push. repocairn is not a CI product; CI consumers
+# (secondpair) should only *read* the committed `.repocairn/index.json`.
 #
 # Copy to .github/workflows/update-index.yml only if you still want CI to rewrite
 # the index after merges to main.
@@ -26,7 +26,7 @@ jobs:
           node-version: 20
 
       - name: Install secondpair
-        run: npm install -g YOUR_GITHUB_USERNAME/codengram  # or: npm i -g secondpair
+        run: npm install -g YOUR_GITHUB_USERNAME/repocairn  # or: npm i -g secondpair
 
       - name: Update codemap incrementally
         env:
@@ -35,12 +35,12 @@ jobs:
 
       - name: Commit updated index
         run: |
-          if git diff --quiet -- .codengram/index.json; then
+          if git diff --quiet -- .repocairn/index.json; then
             echo "Codemap unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .codengram/index.json
-          git commit -m "chore: update codengram index [skip ci]"
+          git add .repocairn/index.json
+          git commit -m "chore: update repocairn index [skip ci]"
           git push

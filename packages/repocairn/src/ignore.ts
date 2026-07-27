@@ -11,7 +11,7 @@ export const DEFAULT_IGNORE = [
   "**/package-lock.json",
   "**/pnpm-lock.yaml",
   "**/yarn.lock",
-  "**/.codengram/**",
+  "**/.repocairn/**",
   "**/.pr-review/**",
 ];
 

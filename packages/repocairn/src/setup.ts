@@ -2,38 +2,38 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readJsonFile } from "./store.js";
 
-const RULE_MARKER = "<!-- codengram:rule -->";
+const RULE_MARKER = "<!-- repocairn:rule -->";
 
 const RULE = `
 ${RULE_MARKER}
-## Codengram — repo memory
+## RepoCairn — repo memory
 
-This repo has a committed memory index (\`.codengram/index.json\`). For orientation
+This repo has a committed memory index (\`.repocairn/index.json\`). For orientation
 questions — where is symbol X, what does file Y do, what depends on these files —
-prefer the codengram MCP tools (\`search_symbols\`, \`file_info\`, \`get_context\`)
-before grep/reading whole files. Fall back to the CLI (\`codengram query <term>\`,
-\`codengram context <files...>\`) if the MCP server is unavailable.
+prefer the repocairn MCP tools (\`search_symbols\`, \`file_info\`, \`get_context\`)
+before grep/reading whole files. Fall back to the CLI (\`repocairn query <term>\`,
+\`repocairn context <files...>\`) if the MCP server is unavailable.
 `;
 
 const SKILL = `---
-name: codengram
-description: Query the committed repo memory (.codengram/index.json). Use before grep/Read for orientation — where a symbol lives, what a file does, who imports it, what context matters for a change.
+name: repocairn
+description: Query the committed repo memory (.repocairn/index.json). Use before grep/Read for orientation — where a symbol lives, what a file does, who imports it, what context matters for a change.
 ---
 
-# Codengram
+# RepoCairn
 
-This repo keeps a persistent index at \`.codengram/index.json\`: per file, its
+This repo keeps a persistent index at \`.repocairn/index.json\`: per file, its
 exported symbols, import graph, and a one-paragraph summary.
 
 Prefer these over grepping / reading whole files for orientation:
 
-- MCP tools (if the codengram server is registered): \`search_symbols\` (where is X),
+- MCP tools (if the repocairn server is registered): \`search_symbols\` (where is X),
   \`file_info\` (what does this file do), \`get_context\` (importers + imports for a
   set of files, token-budgeted).
-- CLI fallback: \`codengram query <term>\`, \`codengram query <path> --file\`,
-  \`codengram context <files...>\`.
+- CLI fallback: \`repocairn query <term>\`, \`repocairn query <path> --file\`,
+  \`repocairn context <files...>\`.
 
-If the index is missing or stale, run \`codengram index\` (add \`--no-llm\` when no
+If the index is missing or stale, run \`repocairn index\` (add \`--no-llm\` when no
 API key is available). Editing code still requires reading the real files — the
 index is for orientation, not exact lines.
 `;
@@ -58,7 +58,7 @@ export const TARGETS: Target[] = [
     detect: [".claude", "CLAUDE.md"],
     mcp: { file: ".mcp.json" },
     rules: { file: "CLAUDE.md" },
-    skillDir: ".claude/skills/codengram",
+    skillDir: ".claude/skills/repocairn",
   },
   {
     id: "cursor",
@@ -66,8 +66,8 @@ export const TARGETS: Target[] = [
     detect: [".cursor"],
     mcp: { file: ".cursor/mcp.json" },
     rules: {
-      file: ".cursor/rules/codengram.mdc",
-      frontmatter: "---\ndescription: Codengram repo memory\nalwaysApply: true\n---\n",
+      file: ".cursor/rules/repocairn.mdc",
+      frontmatter: "---\ndescription: RepoCairn repo memory\nalwaysApply: true\n---\n",
     },
   },
   {
@@ -99,7 +99,7 @@ export const TARGETS: Target[] = [
     id: "continue",
     label: "Continue",
     detect: [".continue"],
-    rules: { file: ".continue/rules/codengram.md" },
+    rules: { file: ".continue/rules/repocairn.md" },
   },
   {
     id: "gemini",
@@ -130,15 +130,15 @@ async function exists(p: string): Promise<boolean> {
   );
 }
 
-/** Merge codengram into an mcpServers-style JSON config, preserving other entries. */
+/** Merge repocairn into an mcpServers-style JSON config, preserving other entries. */
 async function mergeMcpConfig(file: string, key = "mcpServers"): Promise<boolean> {
   let config: Record<string, any> = {};
   if (await exists(file)) {
     config = await readJsonFile(file);
   }
   config[key] ??= {};
-  if (config[key].codengram) return false;
-  config[key].codengram = { command: "codengram", args: ["mcp"] };
+  if (config[key].repocairn) return false;
+  config[key].repocairn = { command: "repocairn", args: ["mcp"] };
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, JSON.stringify(config, null, 2) + "\n");
   return true;
@@ -159,7 +159,7 @@ export interface SetupOptions {
   targets?: string[];
 }
 
-/** Detect installed AI tools in the repo and wire codengram in. Returns steps performed. */
+/** Detect installed AI tools in the repo and wire repocairn in. Returns steps performed. */
 export async function runSetup(cwd: string, opts: SetupOptions = {}): Promise<string[]> {
   let active: Target[];
   if (opts.targets?.length) {

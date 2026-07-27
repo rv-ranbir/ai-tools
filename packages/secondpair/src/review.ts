@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { estimateTokens, getModel, loadIndex, selectContext, structuredCall } from "codengram";
+import { estimateTokens, getModel, loadIndex, selectContext, structuredCall } from "repocairn";
 import { isIgnored } from "./config.js";
 import { parseDiff } from "./diff/parse.js";
 import { withFindingId } from "./finding-id.js";
@@ -107,7 +107,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
       log(`Injecting context from ${selection.entries.length} codemap entries.`);
     } else {
       log(
-        "No codengram index found (.codengram/index.json) — reviewing diff-only. Run `codengram init` (or `codengram index`) and commit the index for whole-repo context.",
+        "No repocairn index found (.repocairn/index.json) — reviewing diff-only. Run `repocairn init` (or `repocairn index`) and commit the index for whole-repo context.",
       );
     }
   }

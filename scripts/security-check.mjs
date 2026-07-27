@@ -35,7 +35,7 @@ if (total !== 0) {
   process.exit(1);
 }
 
-for (const name of ["codengram", "secondpair"]) {
+for (const name of ["repocairn", "secondpair"]) {
   const installed = realpathSync(join(root, "node_modules", name));
   const workspace = realpathSync(join(root, "packages", name));
   if (installed !== workspace) {

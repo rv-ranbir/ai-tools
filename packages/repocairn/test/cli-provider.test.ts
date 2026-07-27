@@ -8,8 +8,8 @@ import { structuredCall } from "../src/llm.js";
 let dir: string;
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "codengram-cli-"));
-  vi.stubEnv("CODENGRAM_PROVIDER", "cli");
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "repocairn-cli-"));
+  vi.stubEnv("REPOCAIRN_PROVIDER", "cli");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "");
 });
@@ -24,7 +24,7 @@ const schema = z.object({ greeting: z.string() });
 async function fakeCli(js: string): Promise<void> {
   const file = path.join(dir, "fake-cli.js");
   await fs.writeFile(file, js);
-  vi.stubEnv("CODENGRAM_CLI_COMMAND", `node "${file}"`);
+  vi.stubEnv("REPOCAIRN_CLI_COMMAND", `node "${file}"`);
 }
 
 describe("cli provider structuredCall", () => {

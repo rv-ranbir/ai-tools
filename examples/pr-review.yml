@@ -1,7 +1,7 @@
 # Copy to .github/workflows/pr-review.yml in the consuming repository.
 #
 # Prerequisites:
-#   1. Commit `.codengram/index.json` (from `codengram init` + hooks locally)
+#   1. Commit `.repocairn/index.json` (from `repocairn init` + hooks locally)
 #   2. Store an LLM API key as a repo secret
 #
 # Checkout is required so the action can read the committed brain.
@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Review PR
-        uses: YOUR_GITHUB_USERNAME/codengram@v1
+        uses: YOUR_GITHUB_USERNAME/repocairn@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Or another provider:

@@ -78,7 +78,7 @@ this codebase, grouped by concern:
 |---|---|---|
 | R1 diff-grounded | **Met** | `validateFindings` drops out-of-diff findings (`src/llm/schema.ts`); tested (`review.test.ts` "Hallucinated finding") |
 | R2 confidence/severity | **Met** | `min_confidence`, `SEVERITIES` rubric in prompt, `capFindings` breaks ties on severity |
-| R3 repo context | **Met** | codengram index integration, `selectContext`, inlined snippets (`review.ts:94-114`) |
+| R3 repo context | **Met** | repocairn index integration, `selectContext`, inlined snippets (`review.ts:94-114`) |
 | R4 actionable fixes | **Met** | `suggestion` field, rendered as GitHub suggestion block / code fence |
 | R5 intra-batch dedup | **Met (fixed this pass)** | `dedupeById()`, tested |
 | R6 cross-run dedup | **Met** | `postReview`/`postGlReview`/`postBbReview` all re-check live `existingIds` immediately before posting |
@@ -130,7 +130,7 @@ cause: nothing downstream of `loadConfig`/diff-fetch currently treats PR
 content as adversarial input.
 
 ### 4.1c Import-graph path traversal (fixed this pass)
-`resolveRelativeImport`/`resolveGenericImport` (`codengram/src/indexer.ts`)
+`resolveRelativeImport`/`resolveGenericImport` (`repocairn/src/indexer.ts`)
 resolve relative import specifiers found in file content to on-disk paths,
 checked only with `existsSync(path.join(cwd, rel))` — no repo-root
 containment check. A file in the diff containing `import x from

@@ -4,7 +4,7 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../codengram" }],
+  "references": [{ "path": "../repocairn" }],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test"]
 }

@@ -45,13 +45,13 @@ async function installConsumer(directory, tarballs, label) {
 
   const sdk = JSON.parse(
     await readFile(
-      path.join(directory, "node_modules/codengram/node_modules/@modelcontextprotocol/sdk/package.json"),
+      path.join(directory, "node_modules/repocairn/node_modules/@modelcontextprotocol/sdk/package.json"),
       "utf8",
     ),
   );
   const hono = JSON.parse(
     await readFile(
-      path.join(directory, "node_modules/codengram/node_modules/@hono/node-server/package.json"),
+      path.join(directory, "node_modules/repocairn/node_modules/@hono/node-server/package.json"),
       "utf8",
     ),
   );
@@ -59,7 +59,7 @@ async function installConsumer(directory, tarballs, label) {
     throw new Error(`${label}: expected @hono/node-server 2.0.12, found ${hono.version}`);
   }
   const total = await audit(directory, label);
-  console.log(`${label}: codengram -> @modelcontextprotocol/sdk@${sdk.version} -> @hono/node-server@${hono.version}; audit total ${total}`);
+  console.log(`${label}: repocairn -> @modelcontextprotocol/sdk@${sdk.version} -> @hono/node-server@${hono.version}; audit total ${total}`);
 }
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), "ai-tools-consumer-security-"));
@@ -68,26 +68,26 @@ const output = requestedOutput ? path.resolve(root, requestedOutput) : path.join
 
 try {
   await mkdir(output, { recursive: true });
-  const stagedCodengram = path.join(temporary, "codengram");
-  await cp(path.join(root, "packages/codengram"), stagedCodengram, {
+  const stagedRepoCairn = path.join(temporary, "repocairn");
+  await cp(path.join(root, "packages/repocairn"), stagedRepoCairn, {
     recursive: true,
     filter: (source) =>
       !["node_modules", "package-lock.json", "npm-shrinkwrap.json"].includes(path.basename(source)),
   });
 
-  npm(["install", "--ignore-scripts", "--package-lock=false"], stagedCodengram);
-  const codengramPack = npm(
-    ["pack", stagedCodengram, "--pack-destination", output, "--json"],
+  npm(["install", "--ignore-scripts", "--package-lock=false"], stagedRepoCairn);
+  const repocairnPack = npm(
+    ["pack", stagedRepoCairn, "--pack-destination", output, "--json"],
     root,
   );
-  const codengram = JSON.parse(codengramPack.stdout)[0];
-  const bundledPaths = new Set(codengram.files.map(({ path: file }) => file));
+  const repocairn = JSON.parse(repocairnPack.stdout)[0];
+  const bundledPaths = new Set(repocairn.files.map(({ path: file }) => file));
   for (const required of [
     "node_modules/@modelcontextprotocol/sdk/package.json",
     "node_modules/@hono/node-server/package.json",
   ]) {
     if (!bundledPaths.has(required)) {
-      throw new Error(`codengram tarball is missing bundled ${required}`);
+      throw new Error(`repocairn tarball is missing bundled ${required}`);
     }
   }
 
@@ -96,21 +96,21 @@ try {
     root,
   );
   const secondpair = JSON.parse(secondpairPack.stdout)[0];
-  const codengramTarball = path.join(output, codengram.filename);
+  const repocairnTarball = path.join(output, repocairn.filename);
   const secondpairTarball = path.join(output, secondpair.filename);
 
   await installConsumer(
-    path.join(temporary, "codengram-consumer"),
-    [codengramTarball],
-    "codengram consumer",
+    path.join(temporary, "repocairn-consumer"),
+    [repocairnTarball],
+    "repocairn consumer",
   );
   await installConsumer(
     path.join(temporary, "secondpair-consumer"),
-    [codengramTarball, secondpairTarball],
+    [repocairnTarball, secondpairTarball],
     "secondpair consumer",
   );
 
-  console.log(`Packed ${codengram.filename} and ${secondpair.filename}; consumer security passed.`);
+  console.log(`Packed ${repocairn.filename} and ${secondpair.filename}; consumer security passed.`);
 } finally {
   await rm(temporary, { recursive: true, force: true });
 }

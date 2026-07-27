@@ -1,5 +1,5 @@
 export { runReview } from "./review.js";
-export { runIndex, selectContext, loadIndex } from "codengram";
+export { runIndex, selectContext, loadIndex } from "repocairn";
 export { loadConfig, DEFAULT_CONFIG } from "./config.js";
 export { parseDiff, renderDiffForPrompt } from "./diff/parse.js";
 export { validateFindings, reviewOutputSchema, findingSchema } from "./llm/schema.js";

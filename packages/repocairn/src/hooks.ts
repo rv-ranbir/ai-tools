@@ -1,13 +1,13 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { loadCodengramConfig, type CodengramConfig } from "./config.js";
+import { loadRepoCairnConfig, type RepoCairnConfig } from "./config.js";
 import { listPushPaths, listStagedPaths, type HookPhase } from "./git-paths.js";
 import { runIndex, type IndexStats } from "./index-command.js";
 import { INDEX_DIR, INDEX_FILE } from "./store.js";
 
 export type { HookPhase };
-export const HOOK_MARKER = "# codengram:hook";
+export const HOOK_MARKER = "# repocairn:hook";
 
 export interface HookResult {
   skipped?: boolean;
@@ -21,7 +21,7 @@ export async function runHook(
   opts: { stdinText?: string; log?: (msg: string) => void } = {},
 ): Promise<HookResult> {
   const log = opts.log ?? (() => {});
-  const config = await loadCodengramConfig(cwd);
+  const config = await loadRepoCairnConfig(cwd);
 
   if (!config.hooks[phase]) {
     return { skipped: true, reason: `hooks.${phase} is false` };
@@ -63,38 +63,38 @@ async function stageIndexFile(cwd: string, log: (msg: string) => void): Promise<
     await exec("git", ["add", "--", `${INDEX_DIR}/${INDEX_FILE}`], { cwd });
   } catch {
     // index file may be gitignored (local-only brain) — that's fine
-    log("Note: could not stage .codengram/index.json (gitignored?).");
+    log("Note: could not stage .repocairn/index.json (gitignored?).");
   }
 }
 
 function hookScriptBody(phase: HookPhase): string {
   return `#!/usr/bin/env bash
 ${HOOK_MARKER}
-# Managed by \`codengram init\`. Do not remove the marker line above.
+# Managed by \`repocairn init\`. Do not remove the marker line above.
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# CODENGRAM_BIN may be a multi-word command line (e.g. "node /path/cli.js")
-if [ -n "\${CODENGRAM_BIN:-}" ]; then
-  eval "$CODENGRAM_BIN hook ${phase}"
+# REPOCAIRN_BIN may be a multi-word command line (e.g. "node /path/cli.js")
+if [ -n "\${REPOCAIRN_BIN:-}" ]; then
+  eval "$REPOCAIRN_BIN hook ${phase}"
   exit $?
 fi
 
-resolve_codengram() {
-  if [ -x "$ROOT/node_modules/.bin/codengram" ]; then
-    echo "$ROOT/node_modules/.bin/codengram"
+resolve_repocairn() {
+  if [ -x "$ROOT/node_modules/.bin/repocairn" ]; then
+    echo "$ROOT/node_modules/.bin/repocairn"
     return
   fi
-  if command -v codengram >/dev/null 2>&1; then
-    command -v codengram
+  if command -v repocairn >/dev/null 2>&1; then
+    command -v repocairn
     return
   fi
   return 1
 }
 
-BIN="$(resolve_codengram)" || {
-  echo "codengram: not found. Install the package or set CODENGRAM_BIN." >&2
+BIN="$(resolve_repocairn)" || {
+  echo "repocairn: not found. Install the package or set REPOCAIRN_BIN." >&2
   exit 1
 }
 
@@ -104,11 +104,11 @@ ${phase === "pre-push" ? `exec "$BIN" hook pre-push` : `exec "$BIN" hook pre-com
 
 export interface InstallHooksOptions {
   force?: boolean;
-  config?: CodengramConfig;
+  config?: RepoCairnConfig;
 }
 
 export async function installHooks(cwd: string, opts: InstallHooksOptions = {}): Promise<string[]> {
-  const config = opts.config ?? (await loadCodengramConfig(cwd));
+  const config = opts.config ?? (await loadRepoCairnConfig(cwd));
   const gitDir = await resolveGitDir(cwd);
   const hooksDir = path.join(gitDir, "hooks");
   await fs.mkdir(hooksDir, { recursive: true });
@@ -128,7 +128,7 @@ export async function installHooks(cwd: string, opts: InstallHooksOptions = {}):
       }
       if (!opts.force) {
         throw new Error(
-          `.git/hooks/${phase} already exists and is not a codengram hook. Re-run with --force to replace, or remove it first.`,
+          `.git/hooks/${phase} already exists and is not a repocairn hook. Re-run with --force to replace, or remove it first.`,
         );
       }
     }

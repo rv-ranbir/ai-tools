@@ -17,9 +17,9 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
 describe("MCP transport compatibility", () => {
-  it("lists tools from the codengram stdio server", async () => {
+  it("lists tools from the repocairn stdio server", async () => {
     const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
-    const client = new Client({ name: "codengram-compatibility-test", version: "1.0.0" });
+    const client = new Client({ name: "repocairn-compatibility-test", version: "1.0.0" });
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: ["--import", "tsx", cli, "mcp", "--dir", process.cwd()],

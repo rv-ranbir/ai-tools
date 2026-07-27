@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../src/config.js";
 
-// Mock codengram's LLM client — tests never hit a real API.
-vi.mock("codengram", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("codengram")>()),
+// Mock repocairn's LLM client — tests never hit a real API.
+vi.mock("repocairn", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("repocairn")>()),
   structuredCall: vi.fn(),
   getModel: () => "mock-model",
   resolveProvider: () => ({ provider: "anthropic", model: "mock-model", baseUrl: "", apiKey: "" }),
 }));
 
-import { structuredCall } from "codengram";
+import { structuredCall } from "repocairn";
 import { runReview } from "../src/review.js";
 
 const mockedCall = vi.mocked(structuredCall);

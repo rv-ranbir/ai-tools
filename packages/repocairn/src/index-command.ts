@@ -28,7 +28,7 @@ export interface IndexStats {
   total: number;
 }
 
-/** Build or incrementally update .codengram/index.json. */
+/** Build or incrementally update .repocairn/index.json. */
 export async function runIndex(opts: IndexOptions): Promise<IndexStats> {
   const log = opts.log ?? (() => {});
   const ignore = opts.ignore ?? [];

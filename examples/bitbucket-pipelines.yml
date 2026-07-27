@@ -7,8 +7,8 @@
 #                                   pullrequest:write scope, used by --post to
 #                                   create inline PR comments
 #
-# Brain freshness: use `codengram init` hooks locally (pre-commit / pre-push).
-# Commit `.codengram/index.json`. Do not rely on CI to rebuild the index.
+# Brain freshness: use `repocairn init` hooks locally (pre-commit / pre-push).
+# Commit `.repocairn/index.json`. Do not rely on CI to rebuild the index.
 
 pipelines:
   pull-requests:
@@ -18,12 +18,12 @@ pipelines:
           image: node:20
           script:
             - |
-              if [ ! -f .codengram/index.json ]; then
-                echo "WARNING: .codengram/index.json missing — diff-only review."
+              if [ ! -f .repocairn/index.json ]; then
+                echo "WARNING: .repocairn/index.json missing — diff-only review."
               fi
             # Install the CLI. Pick one:
             #   from npm (once published):        npm install -g secondpair
-            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/codengram.git
+            #   from a git remote:                npm install -g git+https://bitbucket.org/YOUR_WORKSPACE/repocairn.git
             - npm install -g secondpair
             - pr-review review --post --fail-on high
           artifacts:

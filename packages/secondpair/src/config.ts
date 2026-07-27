@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-import { isIgnored as matchesIgnorePatterns, matchesGlob } from "codengram";
+import { isIgnored as matchesIgnorePatterns, matchesGlob } from "repocairn";
 import { compileRedactPatterns } from "./redact.js";
 import { CATEGORIES, SEVERITIES, type Category, type ReviewConfig } from "./types.js";
 
@@ -90,7 +90,7 @@ export function mergeConfig(partial: z.infer<typeof configSchema>): ReviewConfig
   };
 }
 
-/** True when the path matches codengram's built-in ignores or this config's patterns. */
+/** True when the path matches repocairn's built-in ignores or this config's patterns. */
 export function isIgnored(filePath: string, config: ReviewConfig): boolean {
   return matchesIgnorePatterns(filePath, config.ignore);
 }

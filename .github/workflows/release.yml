@@ -52,14 +52,14 @@ jobs:
           fi
 
           tag_version="${GITHUB_REF_NAME#v}"
-          codengram_version="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/codengram/package.json', 'utf8')).version")"
+          repocairn_version="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/repocairn/package.json', 'utf8')).version")"
           secondpair_version="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/secondpair/package.json', 'utf8')).version")"
-          codengram_range="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/secondpair/package.json', 'utf8')).dependencies.codengram")"
+          repocairn_range="$(node -p "JSON.parse(require('node:fs').readFileSync('packages/secondpair/package.json', 'utf8')).dependencies.repocairn")"
 
-          if [[ "$tag_version" != "$codengram_version" ||
+          if [[ "$tag_version" != "$repocairn_version" ||
                 "$tag_version" != "$secondpair_version" ||
-                "$codengram_range" != "^$tag_version" ]]; then
-            echo "Tag $tag_version, package versions, and secondpair codengram range ^$tag_version must match." >&2
+                "$repocairn_range" != "^$tag_version" ]]; then
+            echo "Tag $tag_version, package versions, and secondpair repocairn range ^$tag_version must match." >&2
             exit 1
           fi
 
@@ -106,7 +106,7 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
 
-          for package in codengram secondpair; do
+          for package in repocairn secondpair; do
             tarball="release-artifacts/$package-$version.tgz"
             error_file="$(mktemp)"
             trap 'rm -f "$error_file"' EXIT
@@ -147,10 +147,10 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish codengram
-        if: steps.existing.outputs.codengram != 'true'
+      - name: Publish repocairn
+        if: steps.existing.outputs.repocairn != 'true'
         run: |
-          npm publish "release-artifacts/codengram-${GITHUB_REF_NAME#v}.tgz" \
+          npm publish "release-artifacts/repocairn-${GITHUB_REF_NAME#v}.tgz" \
             --access public --provenance --tag "${{ steps.release.outputs.dist-tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
