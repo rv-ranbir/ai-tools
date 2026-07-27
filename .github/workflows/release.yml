@@ -123,7 +123,7 @@ jobs:
                 exit 1
               fi
               echo "$package=true" >> "$GITHUB_OUTPUT"
-            elif node -e 'try { const error = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")); if (error?.error?.code !== "E404") process.exit(1); } catch { process.exit(1); }' "$error_file"; then
+            elif grep -qE 'E404|404 Not Found|is not in this registry' "$error_file"; then
               echo "$package=false" >> "$GITHUB_OUTPUT"
             else
               echo "npm view failed for $package@$version:" >&2
