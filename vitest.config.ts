@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     // Resolve the workspace package to its TS source so tests run without a build.
     alias: {
-      codengram: path.resolve(__dirname, "packages/codengram/src/index.ts"),
+      repocairn: path.resolve(__dirname, "packages/repocairn/src/index.ts"),
     },
   },
 });

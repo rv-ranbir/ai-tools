@@ -5,13 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../src/config.js";
 import type { Finding } from "../src/types.js";
 
-vi.mock("codengram", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("codengram")>()),
+vi.mock("repocairn", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("repocairn")>()),
   structuredCall: vi.fn(),
   getModel: () => "mock-model",
 }));
 
-import { structuredCall } from "codengram";
+import { structuredCall } from "repocairn";
 import { CRITIQUE_SYSTEM_PROMPT, REVIEW_SYSTEM_PROMPT } from "../src/llm/prompt.js";
 import { capFindings, runReview } from "../src/review.js";
 
@@ -231,7 +231,7 @@ describe("context snippets", () => {
 
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), "pr-review-snip-"));
-    await fs.mkdir(path.join(dir, ".codengram"), { recursive: true });
+    await fs.mkdir(path.join(dir, ".repocairn"), { recursive: true });
     await fs.mkdir(path.join(dir, "src"), { recursive: true });
     await fs.writeFile(path.join(dir, "src", "math.ts"), "export function sum() {}\n");
     await fs.writeFile(
@@ -250,7 +250,7 @@ describe("context snippets", () => {
         },
       },
     };
-    await fs.writeFile(path.join(dir, ".codengram", "index.json"), JSON.stringify(index));
+    await fs.writeFile(path.join(dir, ".repocairn", "index.json"), JSON.stringify(index));
   });
 
   afterEach(async () => {

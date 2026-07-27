@@ -2,7 +2,7 @@
 
 LLM-powered PR reviewer with whole-repo context. Reviews a diff (local,
 staged, or a GitHub/GitLab/Bitbucket PR), posts inline comments, gates CI
-on severity. Uses sibling package [`codengram`](../codengram/README.md) as
+on severity. Uses sibling package [`repocairn`](../repocairn/README.md) as
 its repo memory so review isn't diff-blind — it sees callers, related
 files, and project context, not just the patch.
 
@@ -12,18 +12,18 @@ files, and project context, not just the patch.
 npm install --save-dev secondpair
 ```
 
-Needs an LLM API key (same resolution as `codengram` — set one):
+Needs an LLM API key (same resolution as `repocairn` — set one):
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...      # default, recommended
-# or: OPENAI_API_KEY / OPENROUTER_API_KEY / CODENGRAM_API_KEY+CODENGRAM_BASE_URL+CODENGRAM_MODEL
+# or: OPENAI_API_KEY / OPENROUTER_API_KEY / REPOCAIRN_API_KEY+REPOCAIRN_BASE_URL+REPOCAIRN_MODEL
 ```
 
 ## Quick start
 
 ```bash
 cd your-repo
-npx codengram init          # one-time: builds repo memory, installs git hooks
+npx repocairn init          # one-time: builds repo memory, installs git hooks
 npx secondpair review --staged           # review staged changes, print report
 npx secondpair review --base main        # review branch vs main
 ```
@@ -79,7 +79,7 @@ before posting, on top of run-to-run fingerprint reconciliation.
 fail_on: high              # critical|high|medium|low|info — CI exit-1 threshold
 min_confidence: 0.5
 ignore: ["**/*.generated.ts", "vendor/**"]
-context_token_budget: 8000 # codengram context injected per chunk
+context_token_budget: 8000 # repocairn context injected per chunk
 context_snippets: 3
 categories:                # turn any off
   bug: true
@@ -104,9 +104,9 @@ from the report.
 
 ## `secondpair index`
 
-Alias for `codengram index` — kept so a repo can adopt `secondpair` without
-also depending on `codengram` directly for this one command. Same
-incremental behavior; see [codengram's README](../codengram/README.md#staying-in-sync-after-code-changes)
+Alias for `repocairn index` — kept so a repo can adopt `secondpair` without
+also depending on `repocairn` directly for this one command. Same
+incremental behavior; see [repocairn's README](../repocairn/README.md#staying-in-sync-after-code-changes)
 for exactly when/how re-indexing happens and why it's cheap on repeated
 runs — short version: git-hook-triggered, hash-incremental, never a full
 rebuild unless you pass `--full`.

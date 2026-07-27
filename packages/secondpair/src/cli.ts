@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
-import { getModel, runIndex } from "codengram";
+import { getModel, runIndex } from "repocairn";
 import {
   getBbPrDiff,
   listBbFindingIds,
@@ -41,12 +41,12 @@ const log = (msg: string) => console.error(pc.dim(msg));
 
 program
   .name("secondpair")
-  .description("secondpair — the second pair of eyes: LLM PR reviewer with a persistent repo memory (codengram) for whole-project context")
+  .description("secondpair — the second pair of eyes: LLM PR reviewer with a persistent repo memory (repocairn) for whole-project context")
   .version("0.1.0");
 
 program
   .command("index")
-  .description("Build or incrementally update the repo memory (.codengram/index.json)")
+  .description("Build or incrementally update the repo memory (.repocairn/index.json)")
   .option("--full", "re-index every file regardless of content hash", false)
   .option("--no-llm", "skip LLM summaries (symbols + import graph only; no API key needed)")
   .option("--dir <path>", "repository root", process.cwd())

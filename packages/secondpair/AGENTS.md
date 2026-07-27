@@ -2,7 +2,7 @@
 
 LLM-powered PR review CLI. "The second pair of eyes." Reviews a diff
 (local, or a GitHub/GitLab/Bitbucket PR), posts inline comments, gates CI
-on severity. Sibling package `codengram` supplies whole-repo context (a
+on severity. Sibling package `repocairn` supplies whole-repo context (a
 persistent codemap) so review isn't diff-blind.
 
 Package root: `packages/secondpair`. Entry points: `src/cli.ts` (bin:
@@ -19,7 +19,7 @@ CLI (cli.ts)
   → runReview()  [review.ts] — THE core pipeline:
       1. redact.ts: strip secrets from diff text (built-in + config patterns)
       2. diff/parse.ts: parseDiff() → FileDiff[], filter ignored/deleted/no-op files
-      3. codengram: loadIndex + selectContext (+ inline snippets) → repo context, then redact it too
+      3. repocairn: loadIndex + selectContext (+ inline snippets) → repo context, then redact it too
       4. chunkFiles() by token budget → 1+ structuredCall() per chunk (llm/prompt.ts prompts)
       5. llm/schema.ts validateFindings() — drop findings outside diff lines / below min_confidence / disabled category
       6. capFindings() — enforce per-file/total limits, lowest-confidence dropped first
@@ -63,7 +63,7 @@ CLI (cli.ts)
 ## CLI
 
 ```
-secondpair index [--full] [--no-llm] [--dir] [--config]     # build/update .codengram/index.json
+secondpair index [--full] [--no-llm] [--dir] [--config]     # build/update .repocairn/index.json
 secondpair review [--staged] [--base <ref>] [--pr <n>] [--repo <slug>]
                    [--host github|gitlab|bitbucket] [--post] [--fail-on <severity>]
                    [--no-context] [--json <path>] [--suppressions <path>] [--write-suppressions]
@@ -77,7 +77,7 @@ Host auto-detected from CI env vars if `--host` omitted (`BITBUCKET_*` → bitbu
 3. `fingerprintFinding()` must stay line-number-free. If you need line info in the id, that's a design change (breaks drift-tolerance) — flag it, don't silently add.
 4. Redaction (`redact.ts`) runs on diff text AND injected repo context, before either reaches `structuredCall`. Keep both call sites if you touch `review.ts`.
 5. Bitbucket's `resolveBbCommentsForIds` is intentionally a documented no-op (Cloud API has no thread-resolve endpoint) — not a bug, don't "fix" it into a silent failure.
-6. Tests mock `codengram`'s `structuredCall`/`getModel` (see any `test/*.test.ts` top of file) — never let a test hit a real LLM API.
+6. Tests mock `repocairn`'s `structuredCall`/`getModel` (see any `test/*.test.ts` top of file) — never let a test hit a real LLM API.
 
 ## Known gaps (see `docs/architecture-review.md` for full detail)
 

@@ -1,7 +1,7 @@
 {
   "name": "secondpair",
   "version": "0.1.0",
-  "description": "LLM-powered pull request reviewer with whole-repo context from a persistent codengram codemap",
+  "description": "LLM-powered pull request reviewer with whole-repo context from a persistent repocairn codemap",
   "type": "module",
   "bin": {
     "secondpair": "./dist/cli.js",
@@ -42,7 +42,7 @@
     "@octokit/rest": "^21.0.0",
     "commander": "^12.1.0",
     "picocolors": "^1.1.0",
-    "codengram": "^0.1.0",
+    "repocairn": "^0.1.0",
     "yaml": "^2.5.0",
     "zod": "^4.4.3"
   }
