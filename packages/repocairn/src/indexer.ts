@@ -136,8 +136,20 @@ function extractTsFacts(
   for (const stmt of source.statements) {
     if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
       addImport(stmt.moduleSpecifier.text);
-    } else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
-      addImport(stmt.moduleSpecifier.text);
+    } else if (ts.isExportDeclaration(stmt)) {
+      if (stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
+        addImport(stmt.moduleSpecifier.text);
+      }
+      // `export { a, b as c }` and `export { a } from './y'` both name real
+      // exports via exportClause — `export * from './y'` has none, only the
+      // import edge above applies there.
+      if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+        for (const el of stmt.exportClause.elements) {
+          symbols.push(`export { ${el.name.text} }`);
+        }
+      }
+    } else if (ts.isExportAssignment(stmt)) {
+      symbols.push(stmt.isExportEquals ? "export = default" : "export default");
     } else if (
       ts.isFunctionDeclaration(stmt) ||
       ts.isClassDeclaration(stmt) ||
@@ -146,6 +158,8 @@ function extractTsFacts(
       ts.isEnumDeclaration(stmt)
     ) {
       if (isExported(stmt)) symbols.push(signatureOf(stmt));
+      if (ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword))
+        symbols.push("export default");
     } else if (ts.isVariableStatement(stmt) && isExported(stmt)) {
       for (const decl of stmt.declarationList.declarations) {
         symbols.push(`export const ${decl.name.getText(source)}`);
