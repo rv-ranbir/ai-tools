@@ -59,6 +59,7 @@ const IDENT_TYPES = new Set([
   "namespace_identifier",
   "constant",
   "name", // PHP grammar's node type for identifiers (class/function names)
+  "word", // Bash grammar's node type for a function's name
 ]);
 
 /**
@@ -120,6 +121,24 @@ function resolveLiteralImport(cwd: string, fromFile: string, spec: string): stri
 }
 
 const NO_IMPORTS = { importNodeTypes: new Set<string>(), extractImportSpecs: () => [] };
+
+/** `source ./lib.sh` / `. ../other.sh` — the only bash "commands" that name a real file. */
+function bashSourceSpecs(node: Parser.SyntaxNode): string[] {
+  const name = node.childForFieldName("name")?.text;
+  if (name !== "source" && name !== ".") return [];
+  const arg = node.childForFieldName("argument");
+  return arg ? [arg.text.replace(/^["']|["']$/g, "")] : [];
+}
+
+/** `const x = @import("util.zig")` — literal relative path only; bare package names (`@import("std")`) never resolve on disk. */
+function zigImportSpecs(node: Parser.SyntaxNode): string[] {
+  const call = node.namedChildren.find((c) => c && c.type === "builtin_function");
+  const ident = call?.namedChildren.find((c) => c && c.type === "builtin_identifier");
+  if (!call || ident?.text !== "@import") return [];
+  const args = call.namedChildren.find((c) => c && c.type === "arguments");
+  const str = args?.namedChildren.find((c) => c && c.type === "string");
+  return str ? [str.text.slice(1, -1)] : [];
+}
 
 const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   ".py": {
@@ -213,9 +232,70 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     extractImportSpecs: cIncludeSpecs,
     symbolNodeTypes: { function_definition: "func", class_specifier: "class", struct_specifier: "struct" },
   },
+  // Scala's import paths are package-qualified like Java's, not file paths —
+  // same "needs build-manifest awareness" gap as the Go/Java/Kotlin/Rust/C#
+  // group above. Symbols only.
+  ".scala": {
+    wasmName: "tree-sitter-scala",
+    ...NO_IMPORTS,
+    symbolNodeTypes: {
+      object_definition: "object",
+      class_definition: "class",
+      trait_definition: "trait",
+      function_definition: "def",
+      function_declaration: "def",
+    },
+  },
+  // Only top-level `function foo() {}` / `foo() {}` definitions and
+  // `source`/`.` file references — arbitrary command invocations (the bulk of
+  // a shell script) intentionally produce neither a symbol nor an import.
+  ".sh": {
+    wasmName: "tree-sitter-bash",
+    importNodeTypes: new Set(["command"]),
+    extractImportSpecs: bashSourceSpecs,
+    resolveImport: resolveLiteralImport,
+    symbolNodeTypes: { function_definition: "function" },
+  },
+  // Objective-C implementation files only (`.m`) — `.h` headers stay routed
+  // through the C config above (shared extension; ObjC-specific @interface
+  // syntax there falls back to the regex extractor, a known miss).
+  ".m": {
+    wasmName: "tree-sitter-objc",
+    importNodeTypes: new Set(["preproc_include"]),
+    extractImportSpecs: cIncludeSpecs,
+    resolveImport: resolveLiteralImport,
+    symbolNodeTypes: { class_interface: "interface", class_implementation: "implementation" },
+  },
+  // Struct/const top-level declarations not captured (Zig's `const x = ...`
+  // node type is indistinguishable from an `@import` assignment without
+  // inspecting the value, same class of gap as Lua's assigned requires) —
+  // function declarations are the high-value surface, covered.
+  ".zig": {
+    wasmName: "tree-sitter-zig",
+    importNodeTypes: new Set(["variable_declaration"]),
+    extractImportSpecs: zigImportSpecs,
+    resolveImport: resolveLiteralImport,
+    symbolNodeTypes: { function_declaration: "fn" },
+  },
 };
 LANGUAGE_CONFIGS[".h"] = LANGUAGE_CONFIGS[".c"];
 LANGUAGE_CONFIGS[".hpp"] = LANGUAGE_CONFIGS[".cpp"];
+
+// Dart is not addable from the bundled tree-sitter-wasms grammar: its wasm is
+// built for language ABI version 15, outside the pinned 0.20.8 runtime's
+// 13-14 range, and fails differently (dylink metadata parse error) under the
+// modern 0.26.11 runtime too — same "no working build available to us" class
+// as Swift below. Falls back to the regex extractGenericFacts.
+//
+// Lua hits the same class of problem in a nastier form: tree-sitter-wasms'
+// tree-sitter-lua.wasm loads and parses *correctly* under the pinned runtime
+// only when it's the very first grammar loaded in the process. Confirmed via
+// isolated repro: loading literally any other grammar first (bash, Python,
+// Go — new or pre-existing, order doesn't matter) makes every subsequent Lua
+// parse silently return an empty tree, no error thrown. The modern runtime
+// rejects the same wasm outright (dylink metadata error, like Dart). Since a
+// real repo indexes multiple languages per run, "only works if loaded first"
+// is not usable — falls back to the regex extractGenericFacts.
 
 const RUBY_CONFIG: LanguageConfig = {
   wasmName: "", // loaded via the modern loader/wasm source instead, see loadRubyLanguage
@@ -223,8 +303,45 @@ const RUBY_CONFIG: LanguageConfig = {
   symbolNodeTypes: { method: "def", class: "class", module: "module" },
 };
 
+// Elixir's grammar has no dedicated node types for module/function
+// definitions — `defmodule`, `def`, `defp`, `import`, `alias`, `require` are
+// all just `call` nodes distinguished only by their `target` identifier text.
+// That doesn't fit the type-keyed LanguageConfig contract above (which
+// dispatches on node.type), so it gets its own walk, not a config entry —
+// see extractElixirFacts. Module names aren't file-path-mapped (compiled via
+// mix, not 1:1 with source files), so symbols only, same as the JVM group.
+function elixirCallTarget(node: Parser.SyntaxNode): string | null {
+  return node.type === "call" ? (node.childForFieldName("target")?.text ?? null) : null;
+}
+
+function elixirDefName(node: Parser.SyntaxNode): string | null {
+  const args = node.namedChildren.find((c) => c && c.type === "arguments");
+  const first = args?.namedChildren[0];
+  if (!first) return null;
+  if (first.type === "call") return first.childForFieldName("target")?.text ?? null;
+  if (IDENT_TYPES.has(first.type)) return first.text;
+  return null;
+}
+
+function walkElixir(nodes: (Parser.SyntaxNode | null)[], symbols: string[]): void {
+  for (const node of nodes) {
+    if (!node) continue;
+    const target = elixirCallTarget(node);
+    if (target === "defmodule") {
+      const args = node.namedChildren.find((c) => c && c.type === "arguments");
+      const alias = args?.namedChildren.find((c) => c && c.type === "alias");
+      if (alias) symbols.push(`defmodule ${alias.text}`);
+      const doBlock = node.namedChildren.find((c) => c && c.type === "do_block");
+      if (doBlock) walkElixir(doBlock.namedChildren, symbols);
+    } else if (target === "def" || target === "defp") {
+      const name = elixirDefName(node);
+      if (name) symbols.push(`${target} ${name}`);
+    }
+  }
+}
+
 export function hasTreeSitterSupport(ext: string): boolean {
-  return ext in LANGUAGE_CONFIGS || ext === ".rb";
+  return ext in LANGUAGE_CONFIGS || ext === ".rb" || ext === ".ex" || ext === ".exs";
 }
 
 let initPromise: Promise<void> | null = null;
@@ -341,6 +458,18 @@ export async function extractTreeSitterFacts(
       return runExtraction(cwd, filePath, tree.rootNode, RUBY_CONFIG);
     } finally {
       tree?.delete();
+    }
+  }
+
+  if (ext === ".ex" || ext === ".exs") {
+    const parser = await getParser("tree-sitter-elixir");
+    const tree = parser.parse(content);
+    try {
+      const symbols: string[] = [];
+      walkElixir(tree.rootNode.namedChildren, symbols);
+      return { symbols: dedupe(symbols).slice(0, 80), imports: [] };
+    } finally {
+      tree.delete();
     }
   }
 

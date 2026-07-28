@@ -16,6 +16,7 @@ const TEXT_EXTENSIONS = new Set([
   ...TS_EXTENSIONS,
   ".py", ".rb", ".go", ".rs", ".java", ".kt", ".cs", ".php", ".swift",
   ".c", ".h", ".cpp", ".hpp", ".vue", ".svelte",
+  ".scala", ".lua", ".sh", ".m", ".zig", ".ex", ".exs", ".dart",
 ]);
 
 const MAX_FILE_BYTES = 400_000;
