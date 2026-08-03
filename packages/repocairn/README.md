@@ -22,6 +22,12 @@ repocairn init
 
 Manual updates anytime: `repocairn index` (respects config `llm` / `ignore`; `--llm` / `--no-llm` override).
 
+## Using graphify as the extraction source
+
+If [graphify](https://github.com/safishamsi/graphify) has already built `graphify-out/graph.json` for the repo, `repocairn index` uses it instead of running its own tree-sitter/regex extraction: graphify's AST layer resolves cross-file dependencies (including monorepo workspace packages via `package.json`/`pnpm-workspace.yaml`) across far more languages than repocairn's own extractors, at zero LLM cost. repocairn reads the `file_type: "code"` nodes and treats `imports`/`imports_from`/`calls`/`indirect_call`/`implements`/`inherits`/`mixes_in`/`embeds`/`references`/`re_exports` edges between different files as dependencies — bare workspace-package imports (`import { X } from "some-pkg"`) resolve to `calls`/`indirect_call` edges rather than `imports_from`, so both are needed to catch monorepo cross-package coupling. LLM summaries are still repocairn's own, generated and cached independently.
+
+No graph present → repocairn falls back to its own extractors below, unchanged. Nothing to configure — detected automatically per run.
+
 ## MCP server — plug the memory into any AI assistant
 
 ```bash

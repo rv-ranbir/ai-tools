@@ -1,5 +1,6 @@
 import type { CodemapIndex } from "./types.js";
 import { extractFileFacts, isIndexableSourcePath, listSourceFiles, planIndexUpdate, sha1 } from "./indexer.js";
+import { loadGraphifyFacts } from "./graphify-source.js";
 import { emptyIndex, loadIndex, saveIndex } from "./store.js";
 import { summarizeFiles } from "./summarize.js";
 
@@ -53,6 +54,7 @@ export async function runIndex(opts: IndexOptions): Promise<IndexStats> {
   }
 
   const plan = await planIndexUpdate(opts.cwd, files, previous, opts.full ?? false);
+  const graphifyFacts = await loadGraphifyFacts(opts.cwd);
 
   const removed = onlyMode
     ? [...explicitRemove].filter((f) => previous.files[f])
@@ -73,7 +75,7 @@ export async function runIndex(opts: IndexOptions): Promise<IndexStats> {
 
   for (const file of plan.stale) {
     const content = plan.contents.get(file)!;
-    const facts = await extractFileFacts(opts.cwd, file, content);
+    const facts = graphifyFacts?.get(file) ?? (await extractFileFacts(opts.cwd, file, content));
     next.files[file] = {
       hash: sha1(content),
       summary: previous.files[file]?.summary ?? "",
