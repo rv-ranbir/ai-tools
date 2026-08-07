@@ -5,7 +5,7 @@ import YAML from "yaml";
 import { z } from "zod";
 import { isIgnored as matchesIgnorePatterns, matchesGlob } from "repocairn";
 import { compileRedactPatterns } from "./redact.js";
-import { CATEGORIES, SEVERITIES, type Category, type ReviewConfig } from "./types.js";
+import { CATEGORIES, SEVERITIES, type Category, type ReviewConfig, type Severity } from "./types.js";
 
 export { matchesGlob };
 
@@ -28,6 +28,9 @@ export const DEFAULT_CONFIG: ReviewConfig = {
   redact_secrets: true,
   redact_patterns: [],
   write_suppressions: false,
+  huge_pr_token_threshold: 120_000,
+  signal_detector: true,
+  parallel_agents: true,
 };
 
 const configSchema = z
@@ -51,6 +54,9 @@ const configSchema = z
     redact_secrets: z.boolean().optional(),
     redact_patterns: z.array(z.string()).optional(),
     write_suppressions: z.boolean().optional(),
+    huge_pr_token_threshold: z.number().int().positive().nullable().optional(),
+    signal_detector: z.boolean().optional(),
+    parallel_agents: z.boolean().optional(),
   })
   .strict();
 
@@ -88,6 +94,22 @@ export function mergeConfig(partial: z.infer<typeof configSchema>): ReviewConfig
     redact_patterns: partial.redact_patterns ?? DEFAULT_CONFIG.redact_patterns,
     write_suppressions: partial.write_suppressions ?? DEFAULT_CONFIG.write_suppressions,
   };
+}
+
+/** Apply CLI-flag overrides (e.g. --fail-on, --write-suppressions) onto a loaded config. */
+export function applyCliOverrides(
+  config: ReviewConfig,
+  overrides: { failOn?: string; writeSuppressions?: boolean },
+): ReviewConfig {
+  const next = { ...config };
+  if (overrides.writeSuppressions) next.write_suppressions = true;
+  if (overrides.failOn) {
+    if (!SEVERITIES.includes(overrides.failOn as Severity)) {
+      throw new Error(`--fail-on must be one of: ${SEVERITIES.join(", ")}`);
+    }
+    next.fail_on = overrides.failOn as Severity;
+  }
+  return next;
 }
 
 /** True when the path matches repocairn's built-in ignores or this config's patterns. */

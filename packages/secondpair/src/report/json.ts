@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import type { ReviewBrief } from "../review.js";
 import type { Finding, Reconciliation, ReviewResult, RunStats } from "../types.js";
 
 export interface JsonReport {
@@ -13,10 +14,12 @@ export interface JsonReport {
   findings: ReviewResult["findings"];
   reconciliation?: Reconciliation;
   stats?: RunStats;
+  highLevelReview?: boolean;
+  reviewBrief?: ReviewBrief;
 }
 
 export function buildJsonReport(
-  result: ReviewResult & { stats?: RunStats },
+  result: ReviewResult & { stats?: RunStats; highLevelReview?: boolean; reviewBrief?: ReviewBrief },
   meta: { model: string; changeDescription: string; usedContext: boolean },
 ): JsonReport {
   return {
@@ -25,6 +28,8 @@ export function buildJsonReport(
     findings: result.findings,
     reconciliation: result.reconciliation,
     stats: result.stats,
+    highLevelReview: result.highLevelReview,
+    reviewBrief: result.reviewBrief,
   };
 }
 

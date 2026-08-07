@@ -2,56 +2,9 @@ import { collectIdsFromBodies, embedFindingId, parseFindingId } from "../finding
 import { AGENT_MARKER, SEVERITY_EMOJI } from "../github/comments.js";
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult, Severity } from "../types.js";
+import { resolveBbAuthHeader, type BbRef } from "./auth.js";
 
 const API = "https://api.bitbucket.org/2.0";
-
-export interface BbRef {
-  workspace: string;
-  repoSlug: string;
-  prId: number;
-}
-
-/**
- * Resolve Bitbucket Cloud auth from the environment:
- *   BITBUCKET_TOKEN / BITBUCKET_ACCESS_TOKEN            -> Bearer (repository access token)
- *   BITBUCKET_USERNAME + BITBUCKET_APP_PASSWORD         -> Basic (app password)
- */
-export function resolveBbAuthHeader(): string {
-  const env = process.env;
-  const token = env.BITBUCKET_TOKEN || env.BITBUCKET_ACCESS_TOKEN;
-  if (token) return `Bearer ${token}`;
-  if (env.BITBUCKET_USERNAME && env.BITBUCKET_APP_PASSWORD) {
-    const basic = Buffer.from(`${env.BITBUCKET_USERNAME}:${env.BITBUCKET_APP_PASSWORD}`).toString(
-      "base64",
-    );
-    return `Basic ${basic}`;
-  }
-  throw new Error(
-    "Bitbucket auth required: set BITBUCKET_TOKEN (repository access token with pullrequest:write) " +
-      "or BITBUCKET_USERNAME + BITBUCKET_APP_PASSWORD.",
-  );
-}
-
-/** Resolve workspace/repo/PR id from flags or Bitbucket Pipelines env vars. */
-export function resolveBbRef(repoSlug: string | undefined, pr: number | undefined): BbRef {
-  const env = process.env;
-  let workspace: string | undefined;
-  let slug: string | undefined;
-  if (repoSlug) {
-    [workspace, slug] = repoSlug.split("/");
-  } else {
-    workspace = env.BITBUCKET_WORKSPACE;
-    slug = env.BITBUCKET_REPO_SLUG;
-  }
-  const prId = pr ?? (env.BITBUCKET_PR_ID ? parseInt(env.BITBUCKET_PR_ID, 10) : undefined);
-  if (!workspace || !slug || prId == null || Number.isNaN(prId)) {
-    throw new Error(
-      "Bitbucket PR not identified. Pass --repo workspace/repo_slug and --pr <id>, " +
-        "or run inside Bitbucket Pipelines (BITBUCKET_WORKSPACE / BITBUCKET_REPO_SLUG / BITBUCKET_PR_ID).",
-    );
-  }
-  return { workspace, repoSlug: slug, prId };
-}
 
 async function bbFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(url, {
@@ -157,7 +110,10 @@ export function formatBbCommentBody(f: Finding): string {
   return body;
 }
 
-export function formatBbSummaryBody(result: ReviewResult, failed: boolean): string {
+export function formatBbSummaryBody(
+  result: ReviewResult & { highLevelReview?: boolean },
+  failed: boolean,
+): string {
   const counts: Partial<Record<Severity, number>> = {};
   for (const f of result.findings) counts[f.severity] = (counts[f.severity] ?? 0) + 1;
   const countLine =
@@ -166,6 +122,9 @@ export function formatBbSummaryBody(result: ReviewResult, failed: boolean): stri
       : Object.entries(counts)
           .map(([sev, n]) => `${SEVERITY_EMOJI[sev as Severity]} ${n} ${sev}`)
           .join(" · ");
+  const highLevelLine = result.highLevelReview
+    ? "\n⚠️ **Large diff** — high-level review only (critical/high severity). Consider splitting this PR."
+    : "";
   const recon = result.reconciliation;
   const reconLine = recon
     ? `\n_Lifecycle:_ ${recon.new.length} new · ${recon.persistent.length} persistent · ${recon.resolved.length} resolved · ${recon.suppressed.length} suppressed`
@@ -176,6 +135,7 @@ export function formatBbSummaryBody(result: ReviewResult, failed: boolean): stri
     result.summary.trim(),
     "",
     countLine,
+    highLevelLine,
     reconLine,
     failed ? "\n❌ **Check failed**: findings at or above the configured severity threshold." : "",
     AGENT_MARKER,

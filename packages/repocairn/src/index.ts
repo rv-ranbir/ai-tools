@@ -1,4 +1,5 @@
 export { selectContext, estimateTokens, type ContextEntry } from "./graph.js";
+export { detectSignals, type Signal, type SignalKind } from "./signals.js";
 export { runIndex, type IndexOptions, type IndexStats } from "./index-command.js";
 export {
   extractFileFacts,

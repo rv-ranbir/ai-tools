@@ -11,7 +11,7 @@ import type { CodemapFileEntry, CodemapIndex } from "./types.js";
 
 const exec = promisify(execFile);
 
-const TS_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
+export const TS_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 const TEXT_EXTENSIONS = new Set([
   ...TS_EXTENSIONS,
   ".py", ".rb", ".go", ".rs", ".java", ".kt", ".cs", ".php", ".swift",

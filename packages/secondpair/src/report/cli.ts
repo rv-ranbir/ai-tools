@@ -9,13 +9,25 @@ const SEVERITY_LABEL: Record<Severity, (s: string) => string> = {
   info: (s) => pc.dim(s.toUpperCase()),
 };
 
-export function formatReport(result: ReviewResult): string {
+export function formatReport(
+  result: ReviewResult & { highLevelReview?: boolean; reviewBrief?: { blastRadius: string[] } },
+): string {
   const lines: string[] = [];
 
   lines.push(pc.bold("PR Review"));
   lines.push("");
+  if (result.highLevelReview) {
+    lines.push(
+      pc.yellow("⚠ Large diff — high-level review only (critical/high). Consider splitting this PR."),
+    );
+    lines.push("");
+  }
   lines.push(result.summary.trim());
   lines.push("");
+  if (result.reviewBrief?.blastRadius.length) {
+    lines.push(pc.dim(`blast radius: ${result.reviewBrief.blastRadius.length} downstream file(s)`));
+    lines.push("");
+  }
 
   if (result.findings.length === 0) {
     lines.push(pc.green("✓ No findings."));

@@ -31,7 +31,10 @@ export function formatCommentBody(f: Finding): string {
   return body;
 }
 
-export function formatReviewBody(result: ReviewResult, failed: boolean): string {
+export function formatReviewBody(
+  result: ReviewResult & { highLevelReview?: boolean },
+  failed: boolean,
+): string {
   const counts = countBySeverity(result.findings);
   const countLine =
     result.findings.length === 0
@@ -39,6 +42,9 @@ export function formatReviewBody(result: ReviewResult, failed: boolean): string 
       : Object.entries(counts)
           .map(([sev, n]) => `${SEVERITY_EMOJI[sev as Severity]} ${n} ${sev}`)
           .join(" · ");
+  const highLevelLine = result.highLevelReview
+    ? "\n⚠️ **Large diff** — high-level review only (critical/high severity). Consider splitting this PR."
+    : "";
   const recon = result.reconciliation;
   const reconLine = recon
     ? `\n_Lifecycle:_ ${recon.new.length} new · ${recon.persistent.length} persistent · ${recon.resolved.length} resolved · ${recon.suppressed.length} suppressed`
@@ -49,6 +55,7 @@ export function formatReviewBody(result: ReviewResult, failed: boolean): string 
     result.summary.trim(),
     "",
     countLine,
+    highLevelLine,
     reconLine,
     failed ? "\n❌ **Check failed**: findings at or above the configured severity threshold." : "",
     AGENT_MARKER,

@@ -81,7 +81,7 @@ describe("chunking large diffs", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "big diff",
       useContext: false,
     });
@@ -115,7 +115,7 @@ index 1111111..2222222 100644
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "t",
       useContext: false,
     });
@@ -131,7 +131,7 @@ index 1111111..2222222 100644
       runReview({
         cwd: process.cwd(),
         diffText: DIFF,
-        config: { ...DEFAULT_CONFIG },
+        config: { ...DEFAULT_CONFIG, parallel_agents: false },
         changeDescription: "t",
         useContext: false,
       }),
@@ -176,7 +176,7 @@ index 1111111..2222222 100644
       const result = await runReview({
         cwd: dir,
         diffText,
-        config: { ...DEFAULT_CONFIG },
+        config: { ...DEFAULT_CONFIG, parallel_agents: false },
         changeDescription: "t",
       });
 

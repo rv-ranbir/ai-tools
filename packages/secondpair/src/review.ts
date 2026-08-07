@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { estimateTokens, getModel, loadIndex, selectContext, structuredCall } from "repocairn";
+import { detectSignals, estimateTokens, getModel, loadIndex, selectContext, structuredCall, type ContextEntry, type Signal } from "repocairn";
 import { isIgnored } from "./config.js";
 import { parseDiff } from "./diff/parse.js";
 import { withFindingId } from "./finding-id.js";
 import {
   CRITIQUE_SYSTEM_PROMPT,
+  HIGH_LEVEL_SYSTEM_PROMPT,
   REVIEW_SYSTEM_PROMPT,
   buildCritiqueUserPrompt,
   buildReviewUserPrompt,
@@ -14,6 +15,8 @@ import {
 import { reviewOutputSchema, validateFindings, type ReviewOutput } from "./llm/schema.js";
 import { reconcileFindings, type Reconciliation } from "./reconcile.js";
 import { compileRedactPatterns, redactSecrets } from "./redact.js";
+import { withRetry } from "./retry.js";
+import { runSpecializedReview } from "./specialized-review.js";
 import { SEVERITIES, severityRank, type FileDiff, type Finding, type ReviewConfig, type ReviewResult, type RunStats, type Severity } from "./types.js";
 
 /** Cap on the prompt tokens spent on diff text per LLM call; larger diffs are chunked by file. */
@@ -39,6 +42,25 @@ export interface RunReviewOutput extends ReviewResult {
   files: FileDiff[];
   usedContext: boolean;
   stats: RunStats;
+  /** Files that import the changed files, ranked by import count — the "blast radius" of this PR. */
+  blastRadius: ContextEntry[];
+  /** True if the diff exceeded `huge_pr_token_threshold` and only a critical/high, split-recommending pass ran. */
+  highLevelReview: boolean;
+  /** Deterministic summary of the change, assembled from Phase A/B output before any LLM call. */
+  reviewBrief: ReviewBrief;
+}
+
+export interface ReviewBrief {
+  files: string[];
+  /** Paths of files that import the changed files (blastRadius, path-only). */
+  blastRadius: string[];
+  signals: Signal[];
+  totalTokens: number;
+}
+
+/** Sum of the same per-file token cost `chunkFiles` uses, across the whole diff. */
+export function totalDiffTokens(files: FileDiff[]): number {
+  return files.reduce((sum, f) => sum + estimateTokens(JSON.stringify(f.hunks)), 0);
 }
 
 /** Token cap per inlined source snippet (~4 chars/token). */
@@ -87,12 +109,24 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
       reconciliation: emptyReconciliation(),
       findingsToPost: [],
       stats,
+      blastRadius: [],
+      highLevelReview: false,
+      reviewBrief: { files: [], blastRadius: [], signals: [], totalTokens: 0 },
     };
   }
   log(`Reviewing ${files.length} changed file(s).`);
 
+  const highLevelReview =
+    opts.config.huge_pr_token_threshold != null && totalDiffTokens(files) > opts.config.huge_pr_token_threshold;
+  if (highLevelReview) {
+    log(
+      `Diff exceeds huge_pr_token_threshold (${opts.config.huge_pr_token_threshold} tokens) — running a critical/high-only, split-recommending review.`,
+    );
+  }
+
   let context = "";
   let usedContext = false;
+  let blastRadius: ContextEntry[] = [];
   if (opts.useContext !== false) {
     const index = await loadIndex(opts.cwd);
     if (index) {
@@ -104,6 +138,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
       const snippets = await renderSnippets(opts.cwd, selection.entries, opts.config.context_snippets);
       context = [selection.rendered, snippets].filter(Boolean).join("\n\n");
       usedContext = selection.entries.length > 0;
+      blastRadius = selection.entries.filter((e) => e.relation === "importer");
       log(`Injecting context from ${selection.entries.length} codemap entries.`);
     } else {
       log(
@@ -113,20 +148,60 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
   }
   context = maybeRedact(context);
 
+  const signals = opts.config.signal_detector ? await collectSignals(opts.cwd, files) : [];
+  if (signals.length > 0) log(`Signal detector found ${signals.length} signal(s) in added lines.`);
+
+  const reviewBrief: ReviewBrief = {
+    files: files.map((f) => f.path),
+    blastRadius: blastRadius.map((e) => e.path),
+    signals,
+    totalTokens: totalDiffTokens(files),
+  };
+
   const chunks = chunkFiles(files);
   if (chunks.length > 1) log(`Large diff — splitting into ${chunks.length} review calls.`);
 
+  const runParallel = opts.config.parallel_agents && !highLevelReview;
+  if (runParallel) log("Running security/correctness/quality lenses in parallel.");
+
   const outputs: ReviewOutput[] = [];
+  const lensStats: Record<string, { calls: number; inputTokens: number; outputTokens: number }> = {};
   for (const chunk of chunks) {
+    const chunkPaths = new Set(chunk.map((f) => f.path));
+    const signalsText = renderSignals(signals.filter((s) => chunkPaths.has(s.file)));
+
+    if (runParallel) {
+      const specialized = await runSpecializedReview({
+        files: chunk,
+        context,
+        signalsText,
+        config: opts.config,
+        changeDescription: opts.changeDescription,
+        temperature,
+      });
+      outputs.push(...specialized.outputs);
+      for (const [key, stat] of Object.entries(specialized.lensStats)) {
+        const acc = (lensStats[key] ??= { calls: 0, inputTokens: 0, outputTokens: 0 });
+        acc.calls += stat.calls;
+        acc.inputTokens += stat.inputTokens;
+        acc.outputTokens += stat.outputTokens;
+        stats.llmCalls += stat.calls;
+        stats.inputTokens += stat.inputTokens;
+        stats.outputTokens += stat.outputTokens;
+      }
+      continue;
+    }
+
     const user = buildReviewUserPrompt({
       files: chunk,
       context,
       config: opts.config,
       changeDescription: opts.changeDescription,
+      signals: signalsText,
     });
     const output = await withRetry(() =>
       structuredCall({
-        system: REVIEW_SYSTEM_PROMPT,
+        system: highLevelReview ? HIGH_LEVEL_SYSTEM_PROMPT : REVIEW_SYSTEM_PROMPT,
         user,
         schema: reviewOutputSchema,
         schemaName: "review_output",
@@ -137,6 +212,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     stats.llmCalls += 1;
     outputs.push(output);
   }
+  if (Object.keys(lensStats).length > 0) stats.lensStats = lensStats;
 
   const merged: ReviewOutput = {
     summary: outputs.map((o) => o.summary).join(" "),
@@ -165,7 +241,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
   let identified: Finding[] = deduped;
 
   let droppedCritique: Finding[] = [];
-  if (opts.config.self_critique && identified.length > 0) {
+  if (opts.config.self_critique && identified.length > 0 && !highLevelReview) {
     const keepSchema = z.object({
       keep_ids: z.array(z.string()).describe("Ids of the findings to keep"),
     });
@@ -216,6 +292,9 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     files,
     usedContext,
     stats,
+    blastRadius,
+    highLevelReview,
+    reviewBrief,
   };
 }
 
@@ -302,6 +381,25 @@ async function renderSnippets(
   return parts.join("\n\n");
 }
 
+/** Run the deterministic signal detector on each changed file's current content. */
+async function collectSignals(cwd: string, files: FileDiff[]): Promise<Signal[]> {
+  const signals: Signal[] = [];
+  for (const f of files) {
+    if (f.status === "deleted" || f.changedLines.length === 0) continue;
+    try {
+      const content = await readFile(path.join(cwd, f.path), "utf8");
+      signals.push(...detectSignals(f.path, content, f.changedLines));
+    } catch {
+      // file unreadable (e.g. sparse checkout) — skip, same as renderSnippets
+    }
+  }
+  return signals;
+}
+
+function renderSignals(signals: Signal[]): string {
+  return signals.map((s) => `- ${s.file}:${s.line} [${s.kind}] ${s.detail}`).join("\n");
+}
+
 function emptyReconciliation(): Reconciliation {
   return { new: [], persistent: [], resolved: [], suppressed: [] };
 }
@@ -322,19 +420,4 @@ function chunkFiles(files: FileDiff[]): FileDiff[][] {
   }
   if (current.length) chunks.push(current);
   return chunks;
-}
-
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
-  let last: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      last = err;
-      if (i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, 500 * 2 ** i));
-      }
-    }
-  }
-  throw last;
 }

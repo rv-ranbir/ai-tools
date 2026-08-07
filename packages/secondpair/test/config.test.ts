@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, isIgnored, loadConfig, matchesGlob } from "../src/config.js";
+import { applyCliOverrides, DEFAULT_CONFIG, isIgnored, loadConfig, matchesGlob } from "../src/config.js";
 
 async function tempRepoWithConfig(yaml: string | null): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), "pr-review-test-"));
@@ -69,5 +69,33 @@ describe("glob matching", () => {
     const config = { ...DEFAULT_CONFIG, ignore: ["docs/**"] };
     expect(isIgnored("docs/guide.md", config)).toBe(true);
     expect(isIgnored("src/docs.ts", config)).toBe(false);
+  });
+});
+
+describe("applyCliOverrides", () => {
+  it("leaves config untouched when no overrides are passed", () => {
+    expect(applyCliOverrides(DEFAULT_CONFIG, {})).toEqual(DEFAULT_CONFIG);
+  });
+
+  it("sets write_suppressions when the flag is present", () => {
+    const config = applyCliOverrides(DEFAULT_CONFIG, { writeSuppressions: true });
+    expect(config.write_suppressions).toBe(true);
+  });
+
+  it("overrides fail_on with a valid severity", () => {
+    const config = applyCliOverrides(DEFAULT_CONFIG, { failOn: "critical" });
+    expect(config.fail_on).toBe("critical");
+  });
+
+  it("throws on an invalid --fail-on value", () => {
+    expect(() => applyCliOverrides(DEFAULT_CONFIG, { failOn: "yolo" })).toThrow(
+      /--fail-on must be one of/,
+    );
+  });
+
+  it("does not mutate the input config", () => {
+    const input = { ...DEFAULT_CONFIG };
+    applyCliOverrides(input, { failOn: "low", writeSuppressions: true });
+    expect(input).toEqual(DEFAULT_CONFIG);
   });
 });

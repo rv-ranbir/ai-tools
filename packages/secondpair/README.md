@@ -81,6 +81,7 @@ min_confidence: 0.5
 ignore: ["**/*.generated.ts", "vendor/**"]
 context_token_budget: 8000 # repocairn context injected per chunk
 context_snippets: 3
+signal_detector: true      # deterministic hook/error-handling/control-flow scan, injected as prompt context
 categories:                # turn any off
   bug: true
   security: true
@@ -92,6 +93,8 @@ limits:
   max_findings_per_file: 5
   max_total: 30
 self_critique: false       # extra LLM pass that only drops findings, never adds
+huge_pr_token_threshold: 120000 # diff tokens above which review switches to critical/high-only + split suggestion; null disables
+parallel_agents: true      # split each chunk into concurrent security/correctness/quality lens calls (more LLM calls, specialized findings); set false for one sequential call
 redact_secrets: true       # strip secrets from diff/context before they reach the LLM
 redact_patterns: []        # extra regexes, on top of built-in AWS/GitHub-token/PEM/etc
 write_suppressions: false  # persist "won't fix" replies to .pr-review-suppressions.yml

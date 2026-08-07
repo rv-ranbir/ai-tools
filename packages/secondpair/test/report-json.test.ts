@@ -126,6 +126,25 @@ describe("buildJsonReport / writeJsonReport", () => {
     const ids = await loadPreviousIds(reportPath);
     expect(ids).toContain("abc123");
   });
+
+  it("includes highLevelReview and reviewBrief when present on the input", async () => {
+    const result: ReviewResult & { highLevelReview: boolean; reviewBrief: { files: string[]; blastRadius: string[]; signals: []; totalTokens: number } } = {
+      findings: [],
+      summary: "s",
+      dropped: [],
+      highLevelReview: true,
+      reviewBrief: { files: ["src/a.ts"], blastRadius: ["src/app.ts"], signals: [], totalTokens: 42 },
+    };
+    const report = buildJsonReport(result, { model: "m", changeDescription: "PR #1", usedContext: false });
+
+    expect(report.highLevelReview).toBe(true);
+    expect(report.reviewBrief).toEqual({
+      files: ["src/a.ts"],
+      blastRadius: ["src/app.ts"],
+      signals: [],
+      totalTokens: 42,
+    });
+  });
 });
 
 describe("formatRunSummaryLine", () => {
@@ -142,6 +161,7 @@ describe("formatRunSummaryLine", () => {
       droppedCritique: 0,
       suppressed: 0,
       persistent: 0,
+      lensStats: { security: { calls: 1, inputTokens: 10, outputTokens: 5 } },
     };
     const line = formatRunSummaryLine(stats);
     expect(line.startsWith("pr-review-summary ")).toBe(true);

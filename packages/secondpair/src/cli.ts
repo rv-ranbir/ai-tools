@@ -3,27 +3,17 @@ import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
 import { getModel, runIndex } from "repocairn";
-import {
-  getBbPrDiff,
-  listBbFindingIds,
-  listBbWontFixFindingIds,
-  postBbReview,
-  resolveBbRef,
-  type BbRef,
-} from "./bitbucket/comments.js";
-import {
-  getGlMrDiff,
-  listGlFindingIds,
-  listGlWontFixFindingIds,
-  postGlReview,
-  resolveGlRef,
-  type GlDiffRefs,
-  type GlRef,
-} from "./gitlab/comments.js";
-import { loadConfig } from "./config.js";
+import { getBbPrDiff, listBbFindingIds, listBbWontFixFindingIds, postBbReview } from "./bitbucket/comments.js";
+import { resolveBbRef, type BbRef } from "./bitbucket/auth.js";
+import { getGlMrDiff, listGlFindingIds, listGlWontFixFindingIds, postGlReview } from "./gitlab/comments.js";
+import { resolveGlRef, type GlRef } from "./gitlab/auth.js";
+import type { GlDiffRefs } from "./gitlab/comments.js";
+import { applyCliOverrides, loadConfig } from "./config.js";
 import { getPrDiff, getPrHeadSha, makeOctokit, parseRepoSlug, type PrRef } from "./diff/github.js";
+import { resolveGhRepoSlug, resolveGhToken } from "./github/auth.js";
 import { getLocalDiff } from "./diff/local.js";
 import { listPostedFindingIds, listWontFixFindingIds, postReview } from "./github/comments.js";
+import { detectHost } from "./host.js";
 import { formatReport, shouldFail } from "./report/cli.js";
 import {
   buildJsonReport,
@@ -34,7 +24,7 @@ import {
 } from "./report/json.js";
 import { runReview } from "./review.js";
 import { appendSuppressionIds, loadSuppressions } from "./suppressions.js";
-import { SEVERITIES, type Severity } from "./types.js";
+import { SEVERITIES } from "./types.js";
 
 const program = new Command();
 const log = (msg: string) => console.error(pc.dim(msg));
@@ -92,28 +82,14 @@ program
   .option("--write-suppressions", "append won’t-fix finding ids to .pr-review-suppressions.yml", false)
   .action(async (opts) => {
     const cwd = path.resolve(opts.dir);
-    const config = await loadConfig(cwd, opts.config);
-    if (opts.writeSuppressions) config.write_suppressions = true;
-    if (opts.failOn) {
-      if (!SEVERITIES.includes(opts.failOn)) {
-        throw new Error(`--fail-on must be one of: ${SEVERITIES.join(", ")}`);
-      }
-      config.fail_on = opts.failOn as Severity;
-    }
+    const config = applyCliOverrides(await loadConfig(cwd, opts.config), {
+      failOn: opts.failOn,
+      writeSuppressions: opts.writeSuppressions,
+    });
 
-    const env = process.env;
-    const host: "github" | "bitbucket" | "gitlab" =
-      opts.host ??
-      (env.BITBUCKET_WORKSPACE || env.BITBUCKET_PR_ID
-        ? "bitbucket"
-        : env.GITLAB_CI
-          ? "gitlab"
-          : "github");
-    if (host !== "github" && host !== "bitbucket" && host !== "gitlab") {
-      throw new Error(`--host must be github, bitbucket, or gitlab, got "${opts.host}".`);
-    }
-    const bbPrAvailable = host === "bitbucket" && (opts.pr != null || env.BITBUCKET_PR_ID);
-    const glMrAvailable = host === "gitlab" && (opts.pr != null || env.CI_MERGE_REQUEST_IID);
+    const host = detectHost(opts.host);
+    const bbPrAvailable = host === "bitbucket" && (opts.pr != null || process.env.BITBUCKET_PR_ID);
+    const glMrAvailable = host === "gitlab" && (opts.pr != null || process.env.CI_MERGE_REQUEST_IID);
 
     let diffText: string;
     let changeDescription: string;
@@ -136,9 +112,8 @@ program
       diffText = await getBbPrDiff(bbRef);
       changeDescription = `PR #${bbRef.prId} in ${bbRef.workspace}/${bbRef.repoSlug}`;
     } else if (opts.pr != null) {
-      const slug = opts.repo ?? process.env.GITHUB_REPOSITORY;
-      if (!slug) throw new Error("Pass --repo owner/name or set GITHUB_REPOSITORY when using --pr.");
-      octokit = makeOctokit(process.env.GITHUB_TOKEN);
+      const slug = resolveGhRepoSlug(opts.repo);
+      octokit = makeOctokit(resolveGhToken());
       prRef = { ...parseRepoSlug(slug), pull_number: opts.pr };
       log(`Fetching diff for ${slug}#${opts.pr}…`);
       diffText = await getPrDiff(octokit, prRef);

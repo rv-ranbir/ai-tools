@@ -4,11 +4,25 @@ import { withFindingId } from "../src/finding-id.js";
 import {
   AGENT_MARKER,
   formatCommentBody,
+  formatReviewBody,
   listWontFixFindingIds,
   postReview,
   resolveThreadsForIds,
 } from "../src/github/comments.js";
 import type { Finding, ReviewResult } from "../src/types.js";
+
+describe("formatReviewBody", () => {
+  it("shows the high-level-review banner when set", () => {
+    const body = formatReviewBody({ summary: "Big diff.", findings: [], dropped: [], highLevelReview: true }, false);
+    expect(body).toContain("Large diff");
+    expect(body).toContain("high-level review only");
+  });
+
+  it("omits the banner when unset (regression)", () => {
+    const body = formatReviewBody({ summary: "Looks good.", findings: [], dropped: [] }, false);
+    expect(body).not.toContain("high-level review only");
+  });
+});
 
 describe("listWontFixFindingIds", () => {
   it("collects an agent finding id from a won't-fix reply", async () => {

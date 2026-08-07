@@ -64,7 +64,7 @@ describe("runReview", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test diff",
       useContext: false,
     });
@@ -103,7 +103,7 @@ describe("runReview", () => {
     const first = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
     });
@@ -127,7 +127,7 @@ describe("runReview", () => {
     const second = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
       previousIds: [id],
@@ -157,7 +157,7 @@ describe("runReview", () => {
     const run1 = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
     });
@@ -185,7 +185,7 @@ describe("runReview", () => {
     const run2 = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
       previousFindings: run1.findings,
@@ -214,7 +214,7 @@ describe("runReview", () => {
     const run3 = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
       previousFindings: run2.findings,
@@ -244,7 +244,7 @@ describe("runReview", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
     });
@@ -261,7 +261,7 @@ describe("runReview", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: lockDiff,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test diff",
       useContext: false,
     });

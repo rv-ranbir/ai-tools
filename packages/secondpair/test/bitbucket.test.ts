@@ -5,8 +5,6 @@ import {
   listBbWontFixFindingIds,
   postBbReview,
   resolveBbCommentsForIds,
-  resolveBbAuthHeader,
-  resolveBbRef,
 } from "../src/bitbucket/comments.js";
 import { AGENT_MARKER } from "../src/github/comments.js";
 import type { Finding, ReviewResult } from "../src/types.js";
@@ -42,48 +40,6 @@ const finding: Finding = {
   body: "The loop reads past the end.",
   suggestion: "for (let i = 0; i < xs.length; i++) total += xs[i];",
 };
-
-describe("resolveBbRef", () => {
-  it("resolves from Bitbucket Pipelines env vars", () => {
-    withEnv({ BITBUCKET_WORKSPACE: "acme", BITBUCKET_REPO_SLUG: "api", BITBUCKET_PR_ID: "7" });
-    expect(resolveBbRef(undefined, undefined)).toEqual({
-      workspace: "acme",
-      repoSlug: "api",
-      prId: 7,
-    });
-  });
-
-  it("prefers explicit flags over env", () => {
-    withEnv({ BITBUCKET_WORKSPACE: "acme", BITBUCKET_REPO_SLUG: "api", BITBUCKET_PR_ID: "7" });
-    expect(resolveBbRef("other/repo", 42)).toEqual({
-      workspace: "other",
-      repoSlug: "repo",
-      prId: 42,
-    });
-  });
-
-  it("throws a helpful error when the PR cannot be identified", () => {
-    withEnv({});
-    expect(() => resolveBbRef(undefined, undefined)).toThrow(/workspace\/repo_slug/);
-  });
-});
-
-describe("resolveBbAuthHeader", () => {
-  it("uses a Bearer token when BITBUCKET_TOKEN is set", () => {
-    withEnv({ BITBUCKET_TOKEN: "tok-123" });
-    expect(resolveBbAuthHeader()).toBe("Bearer tok-123");
-  });
-
-  it("uses Basic auth for username + app password", () => {
-    withEnv({ BITBUCKET_USERNAME: "alice", BITBUCKET_APP_PASSWORD: "pw" });
-    expect(resolveBbAuthHeader()).toBe(`Basic ${Buffer.from("alice:pw").toString("base64")}`);
-  });
-
-  it("throws when no credentials are available", () => {
-    withEnv({});
-    expect(() => resolveBbAuthHeader()).toThrow(/BITBUCKET_TOKEN/);
-  });
-});
 
 describe("listBbWontFixFindingIds", () => {
   it("collects an agent finding id through a comment parent chain", async () => {
@@ -196,5 +152,14 @@ describe("Bitbucket comment formatting", () => {
     expect(body).toContain("1 high");
     expect(body).toContain("Check failed");
     expect(body).toContain(AGENT_MARKER);
+  });
+
+  it("summary shows the high-level-review banner when set", () => {
+    const body = formatBbSummaryBody(
+      { summary: "Big diff.", findings: [], dropped: [], highLevelReview: true },
+      false,
+    );
+    expect(body).toContain("Large diff");
+    expect(body).toContain("high-level review only");
   });
 });

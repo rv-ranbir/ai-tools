@@ -105,7 +105,7 @@ describe("temperature and stats", () => {
     await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "t",
       useContext: false,
     });
@@ -114,7 +114,7 @@ describe("temperature and stats", () => {
     await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG, temperature: 0 },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, temperature: 0 },
       changeDescription: "t",
       useContext: false,
     });
@@ -130,7 +130,7 @@ describe("temperature and stats", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "t",
       useContext: false,
     });
@@ -197,7 +197,7 @@ describe("self-critique", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG, self_critique: true },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, self_critique: true },
       changeDescription: "t",
       useContext: false,
     });
@@ -216,7 +216,7 @@ describe("self-critique", () => {
     const result = await runReview({
       cwd: process.cwd(),
       diffText: DIFF,
-      config: { ...DEFAULT_CONFIG, self_critique: true },
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, self_critique: true },
       changeDescription: "t",
       useContext: false,
     });

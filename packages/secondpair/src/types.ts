@@ -90,6 +90,12 @@ export interface ReviewConfig {
   redact_secrets: boolean;
   redact_patterns: string[];
   write_suppressions: boolean;
+  /** Total diff tokens above which the review switches to a high-level-only pass and suggests splitting the PR. null disables the branch. */
+  huge_pr_token_threshold: number | null;
+  /** Run the deterministic pre-LLM hook/error-handling/control-flow detector and inject its output as a prompt section. */
+  signal_detector: boolean;
+  /** Split each chunk's review into concurrent security/correctness/quality lens calls instead of one call. */
+  parallel_agents: boolean;
 }
 
 export interface RunStats {
@@ -104,6 +110,8 @@ export interface RunStats {
   droppedCritique: number;
   suppressed: number;
   persistent: number;
+  /** Per-lens call/token counts, present only when parallel_agents ran. */
+  lensStats?: Record<string, { calls: number; inputTokens: number; outputTokens: number }>;
 }
 
 export interface ReviewResult {

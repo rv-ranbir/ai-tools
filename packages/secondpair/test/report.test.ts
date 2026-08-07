@@ -52,4 +52,42 @@ describe("formatReport", () => {
     const text = formatReport({ summary: "Looks good.", findings: [], dropped: [] });
     expect(text).toContain("No findings");
   });
+
+  it("shows the high-level-review banner when set", () => {
+    const text = formatReport({
+      summary: "Big diff.",
+      findings: [],
+      dropped: [],
+      highLevelReview: true,
+    });
+    expect(text).toContain("Large diff — high-level review only");
+  });
+
+  it("omits the high-level-review banner when unset (regression)", () => {
+    const text = formatReport({ summary: "Looks good.", findings: [], dropped: [] });
+    expect(text).not.toContain("high-level review only");
+  });
+
+  it("shows the blast-radius line when reviewBrief.blastRadius is non-empty", () => {
+    const text = formatReport({
+      summary: "s",
+      findings: [],
+      dropped: [],
+      reviewBrief: { blastRadius: ["src/app.ts", "src/index.ts"] },
+    });
+    expect(text).toContain("blast radius: 2 downstream file(s)");
+  });
+
+  it("omits the blast-radius line when reviewBrief is absent or empty", () => {
+    const withoutBrief = formatReport({ summary: "s", findings: [], dropped: [] });
+    expect(withoutBrief).not.toContain("blast radius:");
+
+    const emptyBrief = formatReport({
+      summary: "s",
+      findings: [],
+      dropped: [],
+      reviewBrief: { blastRadius: [] },
+    });
+    expect(emptyBrief).not.toContain("blast radius:");
+  });
 });
