@@ -16,13 +16,16 @@
     "test:pr-review": "vitest run packages/secondpair"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=24.19.0"
   },
   "license": "MIT",
   "overrides": {
     "@modelcontextprotocol/sdk": {
       "@hono/node-server": "2.0.12"
-    }
+    },
+    "hono": "^4.13.3",
+    "fast-uri": "^3.1.5",
+    "nanoid": "^3.3.18"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

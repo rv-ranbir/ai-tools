@@ -36,7 +36,7 @@
     "dev": "tsx src/cli.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.0",
