@@ -99,6 +99,8 @@ export interface ReviewConfig {
   signal_detector: boolean;
   /** Split each chunk's review into concurrent security/correctness/quality lens calls instead of one call. */
   parallel_agents: boolean;
+  /** Extra LLM pass comparing "new" findings against previously posted ones (same-file only), to catch reworded duplicates exact/soft-match reconciliation misses. On by default. */
+  semantic_dedup: boolean;
 }
 
 export interface RunStats {

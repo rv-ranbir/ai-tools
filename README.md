@@ -160,6 +160,7 @@ limits:
   max_findings_per_file: 5 # lowest-confidence findings beyond this are dropped
   max_total: 30
 self_critique: false       # extra LLM pass that drops findings it would walk back
+semantic_dedup: true       # extra LLM pass matching reworded "new" findings against already-posted ones (same-file only, cheap)
 ```
 
 Every review ends with one machine-readable line on stderr for CI dashboards:

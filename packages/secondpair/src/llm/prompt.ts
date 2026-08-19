@@ -88,6 +88,26 @@ export function buildCritiqueUserPrompt(input: {
   return `Change under review: ${input.changeDescription}\n\n# FINDINGS\n${list}\n\nReturn the ids to keep.`;
 }
 
+export const DEDUP_SYSTEM_PROMPT = `You are comparing NEW pull-request review findings against PRIOR findings already posted as comments on the same PR. Findings can be worded very differently (different title, different body) yet describe the exact same underlying issue in the exact same code.
+
+Rules:
+1. Match a new finding to a prior one ONLY when they are in the same file and describe the same root cause — not merely the same category or nearby lines.
+2. A new finding about a genuinely different problem in the same file/lines is NOT a duplicate, even if related.
+3. Return only the pairs you are confident are duplicates.`;
+
+export function buildDedupUserPrompt(input: {
+  newFindings: { id?: string; file: string; start_line: number; title: string; body: string }[];
+  priorFindings: { id?: string; file: string; title: string }[];
+}): string {
+  const prior = input.priorFindings
+    .map((f) => `- id: ${f.id}\n  file: ${f.file}\n  title: ${f.title}`)
+    .join("\n");
+  const news = input.newFindings
+    .map((f) => `- id: ${f.id}\n  location: ${f.file}:${f.start_line}\n  title: ${f.title}\n  body: ${f.body}`)
+    .join("\n");
+  return `# PRIOR FINDINGS (already posted on this PR)\n${prior}\n\n# NEW FINDINGS (candidates to post)\n${news}\n\nReturn the new_id/prior_id pairs that are duplicates.`;
+}
+
 export interface ReviewPromptInput {
   files: FileDiff[];
   /** Rendered repository context from the codemap; empty when no index exists. */

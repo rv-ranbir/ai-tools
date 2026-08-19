@@ -7,9 +7,11 @@ import { parseDiff } from "./diff/parse.js";
 import { withFindingId } from "./finding-id.js";
 import {
   CRITIQUE_SYSTEM_PROMPT,
+  DEDUP_SYSTEM_PROMPT,
   HIGH_LEVEL_SYSTEM_PROMPT,
   REVIEW_SYSTEM_PROMPT,
   buildCritiqueUserPrompt,
+  buildDedupUserPrompt,
   buildReviewUserPrompt,
 } from "./llm/prompt.js";
 import { reviewOutputSchema, validateFindings, type ReviewOutput } from "./llm/schema.js";
@@ -35,6 +37,19 @@ export interface RunReviewOptions {
   previousFindings?: import("./reconcile.js").PreviousFinding[];
   /** Ids listed in `.pr-review-suppressions.yml`. */
   suppressedIds?: Iterable<string>;
+  /**
+   * Paths changed since the last reviewed commit. When set, only these
+   * files are sent to the LLM — everything else in the diff is assumed
+   * untouched since the last review and skipped entirely (see
+   * `carryForwardFindings`). Undefined means a full review of every file.
+   */
+  changedFiles?: Set<string>;
+  /**
+   * Findings from files NOT in `changedFiles` (untouched since the last
+   * review) — merged straight into the result as persistent, without any
+   * LLM call, since nothing about them could have changed.
+   */
+  carryForwardFindings?: Finding[];
   log?: (msg: string) => void;
 }
 
@@ -114,10 +129,20 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
       reviewBrief: { files: [], blastRadius: [], signals: [], totalTokens: 0 },
     };
   }
-  log(`Reviewing ${files.length} changed file(s).`);
+  const filesToAnalyze = opts.changedFiles
+    ? files.filter((f) => opts.changedFiles!.has(f.path))
+    : files;
+  if (opts.changedFiles) {
+    log(
+      `Reviewing ${filesToAnalyze.length} changed file(s); ${files.length - filesToAnalyze.length} unchanged since the last review are carried forward.`,
+    );
+  } else {
+    log(`Reviewing ${files.length} changed file(s).`);
+  }
 
   const highLevelReview =
-    opts.config.huge_pr_token_threshold != null && totalDiffTokens(files) > opts.config.huge_pr_token_threshold;
+    opts.config.huge_pr_token_threshold != null &&
+    totalDiffTokens(filesToAnalyze) > opts.config.huge_pr_token_threshold;
   if (highLevelReview) {
     log(
       `Diff exceeds huge_pr_token_threshold (${opts.config.huge_pr_token_threshold} tokens) — running a critical/high-only, split-recommending review.`,
@@ -158,7 +183,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     totalTokens: totalDiffTokens(files),
   };
 
-  const chunks = chunkFiles(files);
+  const chunks = chunkFiles(filesToAnalyze);
   if (chunks.length > 1) log(`Large diff — splitting into ${chunks.length} review calls.`);
 
   const runParallel = opts.config.parallel_agents && !highLevelReview;
@@ -219,7 +244,7 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     findings: outputs.flatMap((o) => o.findings),
   };
 
-  const validated = validateFindings(merged, files, opts.config);
+  const validated = validateFindings(merged, filesToAnalyze, opts.config);
   stats.droppedValidation = validated.dropped.length;
   if (validated.dropped.length > 0) {
     log(
@@ -269,25 +294,100 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     }
   }
 
-  const { active, toPost, reconciliation } = reconcileFindings(identified, {
+  const { active, toPost: toPostRaw, reconciliation: reconciliationRaw } = reconcileFindings(identified, {
     previousIds: opts.previousIds,
     previousFindings: opts.previousFindings,
     suppressedIds: opts.suppressedIds,
   });
 
+  // Exact-id and soft-match reconciliation can both miss a reworded finding
+  // (same issue, different title/body) — catch those with an LLM comparison
+  // against everything already posted, so we don't post a second comment for
+  // an issue someone edited around without fixing.
+  let dedupMatched = new Set<string>();
+  if (opts.config.semantic_dedup && reconciliationRaw.new.length > 0) {
+    const newFindings = active.filter((f) => f.id && reconciliationRaw.new.includes(f.id));
+    const newFiles = new Set(newFindings.map((f) => f.file));
+    // DEDUP_SYSTEM_PROMPT only ever matches within the same file, so prior
+    // findings from files the new candidates don't touch can't match —
+    // sending them just burns tokens (and on a PR where the touched files
+    // never had prior findings, this empties the pool and skips the call).
+    const priorPool = [...(opts.previousFindings ?? []), ...(opts.carryForwardFindings ?? [])].filter((f) =>
+      newFiles.has(f.file),
+    );
+    if (priorPool.length > 0 && newFindings.length > 0) {
+      const dedupSchema = z.object({
+        duplicates: z
+          .array(z.object({ new_id: z.string(), prior_id: z.string() }))
+          .describe("New finding ids that describe the same issue as a prior finding"),
+      });
+      const dedup = await withRetry(() =>
+        structuredCall({
+          system: DEDUP_SYSTEM_PROMPT,
+          user: buildDedupUserPrompt({
+            newFindings: newFindings.map((f) => ({
+              id: f.id,
+              file: f.file,
+              start_line: f.start_line,
+              title: f.title,
+              body: f.body,
+            })),
+            priorFindings: priorPool.map((f) => ({ id: f.id, file: f.file, title: f.title })),
+          }),
+          schema: dedupSchema,
+          schemaName: "dedup_output",
+          temperature,
+          onUsage,
+        }),
+      );
+      stats.llmCalls += 1;
+      dedupMatched = new Set(dedup.duplicates.map((d) => d.new_id));
+      if (dedupMatched.size > 0) {
+        log(`Semantic dedup: ${dedupMatched.size} "new" finding(s) already covered by an existing comment.`);
+      }
+    }
+  }
+  const reconciliation: Reconciliation =
+    dedupMatched.size > 0
+      ? {
+          ...reconciliationRaw,
+          new: reconciliationRaw.new.filter((id) => !dedupMatched.has(id)),
+          persistent: [...reconciliationRaw.persistent, ...reconciliationRaw.new.filter((id) => dedupMatched.has(id))],
+        }
+      : reconciliationRaw;
+  const toPost = toPostRaw.filter((f) => !(f.id && dedupMatched.has(f.id)));
+
+  // Files untouched since the last review were never re-analyzed — their
+  // prior findings carry forward as persistent without going through
+  // reconciliation (nothing could have been "resolved" in code nobody edited).
+  const carryForward = opts.carryForwardFindings ?? [];
+  if (carryForward.length > 0) {
+    log(`Carrying forward ${carryForward.length} finding(s) from unchanged file(s) (no re-analysis).`);
+  }
+  const finalActive = [...active, ...carryForward];
+  const finalReconciliation: Reconciliation = {
+    ...reconciliation,
+    persistent: [...reconciliation.persistent, ...carryForward.map((f) => f.id).filter((id): id is string => !!id)],
+  };
+
   log(
-    `Reconciliation: ${reconciliation.new.length} new, ${reconciliation.persistent.length} persistent, ${reconciliation.resolved.length} resolved, ${reconciliation.suppressed.length} suppressed.`,
+    `Reconciliation: ${reconciliation.new.length} new, ${finalReconciliation.persistent.length} persistent, ${reconciliation.resolved.length} resolved, ${reconciliation.suppressed.length} suppressed.`,
   );
 
-  for (const f of active) stats.findingsBySeverity[f.severity] += 1;
+  for (const f of finalActive) stats.findingsBySeverity[f.severity] += 1;
   stats.suppressed = reconciliation.suppressed.length;
-  stats.persistent = reconciliation.persistent.length;
+  stats.persistent = finalReconciliation.persistent.length;
+
+  const summary =
+    filesToAnalyze.length === 0 && carryForward.length > 0
+      ? `No changes since the last review. ${carryForward.length} previous finding(s) carried forward.`
+      : validated.summary;
 
   return {
-    findings: active,
-    summary: validated.summary,
+    findings: finalActive,
+    summary,
     dropped: [...validated.dropped, ...capped, ...duplicates, ...droppedCritique],
-    reconciliation,
+    reconciliation: finalReconciliation,
     findingsToPost: toPost,
     files,
     usedContext,

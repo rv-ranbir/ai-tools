@@ -5,20 +5,41 @@ import pc from "picocolors";
 import { getModel, runIndex } from "repocairn";
 import {
   getBbPrDiff,
+  getBbPrHeadSha,
+  getBbReviewState,
+  listBbChangedFiles,
   listBbFindingIds,
-  listBbFindings,
   listBbWontFixFindingIds,
   postBbReview,
 } from "./bitbucket/comments.js";
 import { resolveBbRef, type BbRef } from "./bitbucket/auth.js";
-import { getGlMrDiff, listGlFindingIds, listGlWontFixFindingIds, postGlReview } from "./gitlab/comments.js";
+import {
+  getGlMrDiff,
+  getGlReviewState,
+  listGlChangedFiles,
+  listGlFindingIds,
+  listGlWontFixFindingIds,
+  postGlReview,
+} from "./gitlab/comments.js";
 import { resolveGlRef, type GlRef } from "./gitlab/auth.js";
 import type { GlDiffRefs } from "./gitlab/comments.js";
 import { applyCliOverrides, loadConfig } from "./config.js";
-import { getPrDiff, getPrHeadSha, makeOctokit, parseRepoSlug, type PrRef } from "./diff/github.js";
+import {
+  getPrDiff,
+  getPrHeadSha,
+  listChangedFiles,
+  makeOctokit,
+  parseRepoSlug,
+  type PrRef,
+} from "./diff/github.js";
 import { resolveGhRepoSlug, resolveGhToken } from "./github/auth.js";
 import { getLocalDiff } from "./diff/local.js";
-import { listPostedFindingIds, listWontFixFindingIds, postReview } from "./github/comments.js";
+import {
+  getReviewState,
+  listPostedFindingIds,
+  listWontFixFindingIds,
+  postReview,
+} from "./github/comments.js";
 import { detectHost } from "./host.js";
 import { formatReport, shouldFail } from "./report/cli.js";
 import {
@@ -31,7 +52,7 @@ import {
 import type { PreviousFinding } from "./reconcile.js";
 import { runReview } from "./review.js";
 import { appendSuppressionIds, loadSuppressions } from "./suppressions.js";
-import { SEVERITIES } from "./types.js";
+import { SEVERITIES, type Finding } from "./types.js";
 
 const program = new Command();
 const log = (msg: string) => console.error(pc.dim(msg));
@@ -158,14 +179,72 @@ program
     }
     const suppressedIds = new Set([...suppressions.ids, ...ephemeral]);
 
+    // Only files changed since the last reviewed commit go back through the
+    // LLM; everything else carries its prior findings forward untouched.
+    // Recovered from the state blob embedded in the last summary comment/review
+    // (see review-state.ts) — the only thing that survives a fresh CI checkout.
+    let changedFiles: Set<string> | undefined;
+    const carryForwardFindings: Finding[] = [];
+    let currentHeadSha: string | undefined;
+
     if (opts.post) {
-      if (glRef) {
-        for (const id of await listGlFindingIds(glRef)) previousIds.add(id);
-      } else if (bbRef) {
-        for (const id of await listBbFindingIds(bbRef)) previousIds.add(id);
-        previousFindings.push(...(await listBbFindings(bbRef)));
-      } else if (prRef && octokit) {
-        for (const id of await listPostedFindingIds(octokit, prRef)) previousIds.add(id);
+      try {
+        if (glRef && glDiffRefs) {
+          currentHeadSha = glDiffRefs.head_sha;
+          const prev = await getGlReviewState(glRef);
+          if (prev) {
+            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
+            if (prev.headSha !== currentHeadSha) {
+              changedFiles = await listGlChangedFiles(glRef, prev.headSha, currentHeadSha);
+              for (const f of prev.findings) {
+                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
+              }
+            } else {
+              changedFiles = new Set();
+              carryForwardFindings.push(...prev.findings);
+            }
+          } else {
+            for (const id of await listGlFindingIds(glRef)) previousIds.add(id);
+          }
+        } else if (bbRef) {
+          currentHeadSha = await getBbPrHeadSha(bbRef);
+          const prev = await getBbReviewState(bbRef);
+          if (prev) {
+            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
+            if (prev.headSha !== currentHeadSha) {
+              changedFiles = await listBbChangedFiles(bbRef, prev.headSha, currentHeadSha);
+              for (const f of prev.findings) {
+                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
+              }
+            } else {
+              changedFiles = new Set();
+              carryForwardFindings.push(...prev.findings);
+            }
+          } else {
+            for (const id of await listBbFindingIds(bbRef)) previousIds.add(id);
+          }
+        } else if (prRef && octokit) {
+          currentHeadSha = await getPrHeadSha(octokit, prRef);
+          const prev = await getReviewState(octokit, prRef);
+          if (prev) {
+            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
+            if (prev.headSha !== currentHeadSha) {
+              changedFiles = await listChangedFiles(octokit, prRef, prev.headSha, currentHeadSha);
+              for (const f of prev.findings) {
+                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
+              }
+            } else {
+              changedFiles = new Set();
+              carryForwardFindings.push(...prev.findings);
+            }
+          } else {
+            for (const id of await listPostedFindingIds(octokit, prRef)) previousIds.add(id);
+          }
+        }
+      } catch (e) {
+        log(`Warning: incremental diff unavailable, falling back to a full review: ${e instanceof Error ? e.message : e}`);
+        changedFiles = undefined;
+        carryForwardFindings.length = 0;
       }
     }
 
@@ -178,6 +257,8 @@ program
       previousIds,
       previousFindings,
       suppressedIds,
+      changedFiles,
+      carryForwardFindings,
       log,
     });
 
@@ -205,9 +286,9 @@ program
       if (glRef && glDiffRefs) {
         await postGlReview({ ref: glRef, diffRefs: glDiffRefs, result, failed, log });
       } else if (bbRef) {
-        await postBbReview({ ref: bbRef, result, failed, log });
+        await postBbReview({ ref: bbRef, result, failed, headSha: currentHeadSha, log });
       } else if (prRef && octokit) {
-        const headSha = await getPrHeadSha(octokit, prRef);
+        const headSha = currentHeadSha ?? (await getPrHeadSha(octokit, prRef));
         await postReview({ octokit, pr: prRef, headSha, result, failed, log });
       } else {
         throw new Error("--post requires a PR (--pr, or Bitbucket/GitLab CI env vars).");

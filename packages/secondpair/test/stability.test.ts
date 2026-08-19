@@ -88,6 +88,34 @@ describe("titleSimilarity + soft match (live thrash regression)", () => {
       ),
     ).toBe(false);
   });
+
+  it("matches despite a category flip when the title is near-identical (live thrash: bug -> security)", () => {
+    expect(
+      findingsSoftMatch(
+        f({ title: "Unpinned npx executes external script", category: "bug", file: "src/ci.ts" }),
+        f({ title: "Unpinned npx executes external script", category: "security", file: "src/ci.ts" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches across large line-citation drift when the title is near-identical (live thrash: L188 vs L71)", () => {
+    expect(
+      findingsSoftMatch(
+        f({
+          title: "Graphify step duplicated in pipeline",
+          file: "src/pipeline.yml",
+          start_line: 188,
+          end_line: 188,
+        }),
+        f({
+          title: "Graphify step duplicated in pipeline",
+          file: "src/pipeline.yml",
+          start_line: 71,
+          end_line: 71,
+        }),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("embed/parse finding id", () => {

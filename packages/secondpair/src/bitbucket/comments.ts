@@ -1,11 +1,9 @@
 import { collectIdsFromBodies, embedFindingId, parseFindingId } from "../finding-id.js";
 import { AGENT_MARKER, SEVERITY_EMOJI } from "../github/comments.js";
-import type { PreviousFinding } from "../reconcile.js";
+import { embedReviewState, parseReviewState, type ReviewState } from "../review-state.js";
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult, Severity } from "../types.js";
 import { resolveBbAuthHeader, type BbRef } from "./auth.js";
-
-const BB_FINDING_CATEGORY_RE = /·\s*`([^`]+)`\s*·/;
 
 const API = "https://api.bitbucket.org/2.0";
 
@@ -37,6 +35,34 @@ export async function getBbPrDiff(ref: BbRef): Promise<string> {
   return res.text();
 }
 
+export async function getBbPrHeadSha(ref: BbRef): Promise<string> {
+  const res = await bbFetch(`${API}/repositories/${ref.workspace}/${ref.repoSlug}/pullrequests/${ref.prId}`);
+  const data = (await res.json()) as { source?: { commit?: { hash?: string } } };
+  const sha = data.source?.commit?.hash;
+  if (!sha) throw new Error("Bitbucket PR response had no source commit hash.");
+  return sha;
+}
+
+/** Paths changed between two commits (diffstat, paginated). */
+export async function listBbChangedFiles(ref: BbRef, fromSha: string, toSha: string): Promise<Set<string>> {
+  const paths = new Set<string>();
+  let url: string | null =
+    `${API}/repositories/${ref.workspace}/${ref.repoSlug}/diffstat/${fromSha}..${toSha}?pagelen=100`;
+  while (url) {
+    const res = await bbFetch(url);
+    const page = (await res.json()) as {
+      values?: { old?: { path?: string }; new?: { path?: string } }[];
+      next?: string;
+    };
+    for (const v of page.values ?? []) {
+      if (v.new?.path) paths.add(v.new.path);
+      if (v.old?.path) paths.add(v.old.path);
+    }
+    url = page.next ?? null;
+  }
+  return paths;
+}
+
 interface BbComment {
   id?: number;
   content?: { raw?: string };
@@ -64,31 +90,20 @@ export async function listBbFindingIds(ref: BbRef): Promise<Set<string>> {
   );
 }
 
-/** Reconstruct a finding's file/category/title/lines from its posted inline comment body. */
-function parseBbFindingComment(body: string, file: string, endLine: number): PreviousFinding | null {
-  const id = parseFindingId(body);
-  if (!id) return null;
-  const category = BB_FINDING_CATEGORY_RE.exec(body)?.[1];
-  const title = /^\*\*(.+)\*\*$/.exec(body.split("\n")[2]?.trim() ?? "")?.[1];
-  if (!category || !title) return null;
-  return { id, file, category: category as Finding["category"], title, start_line: endLine, end_line: endLine };
-}
-
 /**
- * Full finding data (file/category/title/lines) recovered from live inline
- * PR comments — used to soft-match rephrased findings across CI runs, where
- * no local report file survives between fresh pipeline checkouts.
+ * Recover the full review state (head sha + every active finding) embedded
+ * in the most recent summary comment — the source of truth for soft-match
+ * reconciliation and incremental (changed-files-only) re-review, since no
+ * local report file survives between fresh Pipelines checkouts.
  */
-export async function listBbFindings(ref: BbRef): Promise<PreviousFinding[]> {
+export async function getBbReviewState(ref: BbRef): Promise<ReviewState | null> {
   const existing = await listBbComments(ref);
-  const out: PreviousFinding[] = [];
-  for (const c of existing) {
-    const body = c.content?.raw;
-    if (!body?.includes(AGENT_MARKER) || !c.inline?.path || c.inline.to == null) continue;
-    const parsed = parseBbFindingComment(body, c.inline.path, c.inline.to);
-    if (parsed) out.push(parsed);
+  const summaries = existing.filter((c) => c.content?.raw?.includes(AGENT_MARKER) && c.inline == null);
+  for (let i = summaries.length - 1; i >= 0; i--) {
+    const state = parseReviewState(summaries[i].content?.raw ?? "");
+    if (state) return state;
   }
-  return out;
+  return null;
 }
 
 export async function listBbWontFixFindingIds(ref: BbRef): Promise<Set<string>> {
@@ -143,6 +158,7 @@ export function formatBbCommentBody(f: Finding): string {
 export function formatBbSummaryBody(
   result: ReviewResult & { highLevelReview?: boolean },
   failed: boolean,
+  headSha?: string,
 ): string {
   const counts: Partial<Record<Severity, number>> = {};
   for (const f of result.findings) counts[f.severity] = (counts[f.severity] ?? 0) + 1;
@@ -159,7 +175,7 @@ export function formatBbSummaryBody(
   const reconLine = recon
     ? `\n_Lifecycle:_ ${recon.new.length} new · ${recon.persistent.length} persistent · ${recon.resolved.length} resolved · ${recon.suppressed.length} suppressed`
     : "";
-  return [
+  let body = [
     "## PR Review Agent",
     "",
     result.summary.trim(),
@@ -170,18 +186,25 @@ export function formatBbSummaryBody(
     failed ? "\n❌ **Check failed**: findings at or above the configured severity threshold." : "",
     AGENT_MARKER,
   ].join("\n");
+  if (headSha) body = embedReviewState(body, { headSha, findings: result.findings });
+  return body;
 }
 
 export interface PostBbReviewOptions {
   ref: BbRef;
   result: ReviewResult;
   failed: boolean;
+  /** Current PR head sha, embedded in the summary comment for the next incremental review. */
+  headSha?: string;
   log?: (msg: string) => void;
 }
 
 /**
  * Post findings to a Bitbucket Cloud PR: one summary comment plus one inline
  * comment per *new* finding. Persistent findings (same pr-review-id) are skipped.
+ * The summary is re-posted every run (not just the first) so its embedded
+ * review state — head sha + every active finding — stays current for the
+ * next run's incremental diff and reconciliation.
  */
 export async function postBbReview(opts: PostBbReviewOptions): Promise<void> {
   const { ref, result, log = () => {} } = opts;
@@ -190,14 +213,11 @@ export async function postBbReview(opts: PostBbReviewOptions): Promise<void> {
   const existing = await listBbComments(ref);
   const mine = existing.filter((c) => c.content?.raw?.includes(AGENT_MARKER));
   const existingIds = collectIdsFromBodies(mine.map((c) => c.content?.raw ?? ""));
-  const alreadySummarized = mine.some((c) => c.inline == null);
 
-  if (!alreadySummarized || result.findings.length === 0) {
-    await bbFetch(commentsUrl, {
-      method: "POST",
-      body: JSON.stringify({ content: { raw: formatBbSummaryBody(result, opts.failed) } }),
-    });
-  }
+  await bbFetch(commentsUrl, {
+    method: "POST",
+    body: JSON.stringify({ content: { raw: formatBbSummaryBody(result, opts.failed, opts.headSha) } }),
+  });
 
   const toPost = result.findingsToPost ?? result.findings;
   let posted = 0;

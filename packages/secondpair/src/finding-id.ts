@@ -89,20 +89,28 @@ export function linesNear(
 }
 
 /**
- * Soft match for re-runs where the model rephrases the title.
- * Same file + category + nearby lines + enough title-token overlap.
+ * Soft match for re-runs where the model rephrases the title (or flips its
+ * own category call, or cites a different anchor line for the same issue).
+ * Same file is the only hard requirement; category and line proximity are
+ * bonus signals traded off against title similarity.
  */
 export function findingsSoftMatch(
   a: Pick<Finding, "file" | "category" | "title" | "start_line" | "end_line">,
   b: Pick<Finding, "file" | "category" | "title" | "start_line" | "end_line">,
   minTitleSimilarity = 0.3,
 ): boolean {
-  if (a.file !== b.file || a.category !== b.category) return false;
-  if (!linesNear(a, b)) return false;
+  if (a.file !== b.file) return false;
   const ta = new Set(titleTokens(a.title));
   const tb = new Set(titleTokens(b.title));
   let inter = 0;
   for (const t of ta) if (tb.has(t)) inter++;
-  if (inter >= 2) return true;
-  return titleSimilarity(a.title, b.title) >= minTitleSimilarity;
+  const sim = titleSimilarity(a.title, b.title);
+  // Category mismatch needs stronger title evidence — a bare overlap could
+  // just be two different issues in the same file/category pair.
+  const titleMatches =
+    a.category === b.category ? inter >= 2 || sim >= minTitleSimilarity : inter >= 3 || sim >= 0.5;
+  if (!titleMatches) return false;
+  if (linesNear(a, b)) return true;
+  // Large line drift only trusted when the wording is near-identical.
+  return sim >= 0.6;
 }

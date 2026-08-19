@@ -5,6 +5,7 @@ import {
   AGENT_MARKER,
   formatCommentBody,
   formatReviewBody,
+  getReviewState,
   listWontFixFindingIds,
   postReview,
   resolveThreadsForIds,
@@ -21,6 +22,45 @@ describe("formatReviewBody", () => {
   it("omits the banner when unset (regression)", () => {
     const body = formatReviewBody({ summary: "Looks good.", findings: [], dropped: [] }, false);
     expect(body).not.toContain("high-level review only");
+  });
+});
+
+describe("getReviewState", () => {
+  it("recovers head sha + full findings from the latest agent review body", async () => {
+    const finding: Finding = withFindingId({
+      file: "src/a.ts",
+      start_line: 12,
+      end_line: 12,
+      severity: "medium",
+      category: "bug",
+      confidence: 0.8,
+      title: "Off-by-one",
+      body: "Loop bound is off by one.",
+    });
+    const result: ReviewResult = { findings: [finding], summary: "ok" };
+    const body = formatReviewBody(result, false, "deadbeef");
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([
+        { body: "some human review, not the agent" },
+        { body },
+      ]),
+      pulls: { listReviews: vi.fn() },
+    } as unknown as Octokit;
+
+    await expect(
+      getReviewState(octokit, { owner: "acme", repo: "api", pull_number: 7 }),
+    ).resolves.toEqual({ headSha: "deadbeef", findings: [finding] });
+  });
+
+  it("returns null when no agent review carries embedded state", async () => {
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([{ body: "not the agent" }]),
+      pulls: { listReviews: vi.fn() },
+    } as unknown as Octokit;
+
+    await expect(
+      getReviewState(octokit, { owner: "acme", repo: "api", pull_number: 7 }),
+    ).resolves.toBeNull();
   });
 });
 

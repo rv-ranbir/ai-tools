@@ -256,6 +256,204 @@ describe("runReview", () => {
     expect(result.dropped).toHaveLength(1);
   });
 
+  it("carries forward findings for files untouched since the last review, without calling the LLM for them", async () => {
+    const DIFF2 = `${DIFF}diff --git a/src/other.ts b/src/other.ts
+index 1111111..2222222 100644
+--- a/src/other.ts
++++ b/src/other.ts
+@@ -1,2 +1,2 @@
+-old line
++new line
+`;
+    const carried = {
+      file: "src/other.ts",
+      start_line: 1,
+      end_line: 2,
+      severity: "medium" as const,
+      category: "style" as const,
+      confidence: 0.7,
+      title: "Stale finding from an earlier commit",
+      body: "z",
+      id: "carried-id-1",
+    };
+    mockedCall.mockResolvedValueOnce({
+      summary: "only math.ts re-analyzed",
+      findings: [
+        {
+          file: "src/math.ts",
+          start_line: 2,
+          end_line: 3,
+          severity: "high",
+          category: "bug",
+          confidence: 0.95,
+          title: "Loop reads past the end of the array",
+          body: "x",
+          suggestion: null,
+        },
+      ],
+    });
+
+    const result = await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF2,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
+      changeDescription: "test",
+      useContext: false,
+      changedFiles: new Set(["src/math.ts"]),
+      carryForwardFindings: [carried],
+    });
+
+    expect(mockedCall).toHaveBeenCalledTimes(1);
+    const callArg = mockedCall.mock.calls[0][0];
+    expect(callArg.user).toContain("src/math.ts");
+    expect(callArg.user).not.toContain("src/other.ts");
+
+    const ids = result.findings.map((f) => f.id);
+    expect(ids).toContain("carried-id-1");
+    expect(result.findings).toHaveLength(2);
+    expect(result.reconciliation?.persistent).toContain("carried-id-1");
+  });
+
+  it("semantic_dedup reclassifies a reworded 'new' finding as persistent and skips reposting it", async () => {
+    const priorFinding = {
+      id: "prior-id-1",
+      file: "src/math.ts",
+      category: "bug" as const,
+      title: "Totally unrelated wording that will not soft-match",
+      start_line: 50,
+      end_line: 51,
+    };
+    mockedCall.mockImplementation(async (opts: { schemaName?: string; user: string }) => {
+      if (opts.schemaName === "dedup_output") {
+        const m = /- id: (\S+)\n {2}location: src\/math\.ts/.exec(opts.user);
+        return { duplicates: m ? [{ new_id: m[1], prior_id: "prior-id-1" }] : [] };
+      }
+      return {
+        summary: "run",
+        findings: [
+          {
+            file: "src/math.ts",
+            start_line: 2,
+            end_line: 3,
+            severity: "high",
+            category: "bug",
+            confidence: 0.95,
+            title: "Loop reads past the end of the array",
+            body: "x",
+            suggestion: null,
+          },
+        ],
+      };
+    });
+
+    const result = await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, semantic_dedup: true },
+      changeDescription: "test",
+      useContext: false,
+      previousFindings: [priorFinding],
+    });
+
+    expect(result.reconciliation?.new).toHaveLength(0);
+    expect(result.reconciliation?.persistent).toEqual([result.findings[0].id]);
+    expect(result.findingsToPost).toHaveLength(0);
+  });
+
+  it("semantic_dedup only sends prior findings from files the new findings actually touch", async () => {
+    const priorInFile = {
+      id: "prior-id-1",
+      file: "src/math.ts",
+      category: "bug" as const,
+      title: "Totally unrelated wording that will not soft-match",
+      start_line: 50,
+      end_line: 51,
+    };
+    const priorOtherFile = {
+      id: "prior-id-2",
+      file: "src/other.ts",
+      category: "bug" as const,
+      title: "Some other file's stale finding",
+      start_line: 1,
+      end_line: 1,
+    };
+    let dedupUserPrompt: string | undefined;
+    mockedCall.mockImplementation(async (opts: { schemaName?: string; user: string }) => {
+      if (opts.schemaName === "dedup_output") {
+        dedupUserPrompt = opts.user;
+        return { duplicates: [] };
+      }
+      return {
+        summary: "run",
+        findings: [
+          {
+            file: "src/math.ts",
+            start_line: 2,
+            end_line: 3,
+            severity: "high",
+            category: "bug",
+            confidence: 0.95,
+            title: "Loop reads past the end of the array",
+            body: "x",
+            suggestion: null,
+          },
+        ],
+      };
+    });
+
+    await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, semantic_dedup: true },
+      changeDescription: "test",
+      useContext: false,
+      previousFindings: [priorInFile, priorOtherFile],
+    });
+
+    expect(dedupUserPrompt).toContain("prior-id-1");
+    expect(dedupUserPrompt).not.toContain("prior-id-2");
+  });
+
+  it("skips the semantic_dedup LLM call entirely when no prior finding shares a file with the new ones", async () => {
+    mockedCall.mockResolvedValueOnce({
+      summary: "run",
+      findings: [
+        {
+          file: "src/math.ts",
+          start_line: 2,
+          end_line: 3,
+          severity: "high",
+          category: "bug",
+          confidence: 0.95,
+          title: "Loop reads past the end of the array",
+          body: "x",
+          suggestion: null,
+        },
+      ],
+    });
+
+    const result = await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false, semantic_dedup: true },
+      changeDescription: "test",
+      useContext: false,
+      previousFindings: [
+        {
+          id: "prior-id-2",
+          file: "src/other.ts",
+          category: "bug" as const,
+          title: "Some other file's stale finding",
+          start_line: 1,
+          end_line: 1,
+        },
+      ],
+    });
+
+    expect(mockedCall).toHaveBeenCalledTimes(1); // review call only, no dedup call
+    expect(result.findingsToPost).toHaveLength(1);
+  });
+
   it("returns cleanly on a diff with only ignored files", async () => {
     const lockDiff = DIFF.replaceAll("src/math.ts", "package-lock.json");
     const result = await runReview({

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatBbCommentBody,
   formatBbSummaryBody,
-  listBbFindings,
+  getBbReviewState,
   listBbWontFixFindingIds,
   postBbReview,
   resolveBbCommentsForIds,
@@ -72,35 +72,45 @@ describe("listBbWontFixFindingIds", () => {
   });
 });
 
-describe("listBbFindings", () => {
-  it("reconstructs file/category/title/lines from a posted inline comment", async () => {
+describe("getBbReviewState", () => {
+  it("recovers head sha + full findings embedded in the latest summary comment", async () => {
     withEnv({ BITBUCKET_TOKEN: "tok" });
     const posted = { ...finding, id: "aabbccddeeff0011" };
-    const body = formatBbCommentBody(posted);
+    const result: ReviewResult = { findings: [posted], summary: "ok" };
+    const summaryBody = formatBbSummaryBody(result, false, "deadbeef");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           values: [
-            { id: 1, content: { raw: body }, inline: { path: "src/a.ts", to: 12 } },
-            { id: 2, content: { raw: "not an agent comment" } },
+            { id: 1, content: { raw: summaryBody } },
+            {
+              id: 2,
+              content: { raw: formatBbCommentBody(posted) },
+              inline: { path: "src/a.ts", to: 12 },
+            },
           ],
         }),
       }),
     );
 
-    const result = await listBbFindings({ workspace: "acme", repoSlug: "api", prId: 7 });
-    expect(result).toEqual([
-      {
-        id: "aabbccddeeff0011",
-        file: "src/a.ts",
-        category: "bug",
-        title: "Off-by-one in loop bound",
-        start_line: 12,
-        end_line: 12,
-      },
-    ]);
+    const state = await getBbReviewState({ workspace: "acme", repoSlug: "api", prId: 7 });
+    expect(state).toEqual({ headSha: "deadbeef", findings: [posted] });
+  });
+
+  it("returns null when no summary carries embedded state", async () => {
+    withEnv({ BITBUCKET_TOKEN: "tok" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ values: [{ id: 1, content: { raw: "not an agent comment" } }] }),
+      }),
+    );
+
+    const state = await getBbReviewState({ workspace: "acme", repoSlug: "api", prId: 7 });
+    expect(state).toBeNull();
   });
 });
 

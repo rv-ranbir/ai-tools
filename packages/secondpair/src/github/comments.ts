@@ -1,6 +1,7 @@
 import type { Octokit } from "@octokit/rest";
 import type { PrRef } from "../diff/github.js";
 import { collectIdsFromBodies, embedFindingId, parseFindingId } from "../finding-id.js";
+import { embedReviewState, parseReviewState, type ReviewState } from "../review-state.js";
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult, Severity } from "../types.js";
 
@@ -37,6 +38,7 @@ export function formatCommentBody(f: Finding): string {
 export function formatReviewBody(
   result: ReviewResult & { highLevelReview?: boolean },
   failed: boolean,
+  headSha?: string,
 ): string {
   const counts = countBySeverity(result.findings);
   const countLine =
@@ -52,7 +54,7 @@ export function formatReviewBody(
   const reconLine = recon
     ? `\n_Lifecycle:_ ${recon.new.length} new · ${recon.persistent.length} persistent · ${recon.resolved.length} resolved · ${recon.suppressed.length} suppressed`
     : "";
-  return [
+  let body = [
     `## PR Review Agent`,
     "",
     result.summary.trim(),
@@ -63,6 +65,23 @@ export function formatReviewBody(
     failed ? "\n❌ **Check failed**: findings at or above the configured severity threshold." : "",
     AGENT_MARKER,
   ].join("\n");
+  if (headSha) body = embedReviewState(body, { headSha, findings: result.findings });
+  return body;
+}
+
+/**
+ * Recover the full review state (head sha + every active finding) embedded
+ * in the agent's most recent PR review body — the source of truth for
+ * soft-match reconciliation and incremental (changed-files-only) re-review.
+ */
+export async function getReviewState(octokit: Octokit, pr: PrRef): Promise<ReviewState | null> {
+  const reviews = await octokit.paginate(octokit.pulls.listReviews, { ...pr, per_page: 100 });
+  const mine = reviews.filter((r) => r.body?.includes(AGENT_MARKER));
+  for (let i = mine.length - 1; i >= 0; i--) {
+    const state = parseReviewState(mine[i].body ?? "");
+    if (state) return state;
+  }
+  return null;
 }
 
 function countBySeverity(findings: Finding[]): Partial<Record<Severity, number>> {
@@ -223,7 +242,7 @@ export async function postReview(opts: PostReviewOptions): Promise<void> {
   }
   if (skipped) log(`Skipping ${skipped} comment(s) already posted (same finding id).`);
 
-  const body = formatReviewBody(result, opts.failed);
+  const body = formatReviewBody(result, opts.failed, opts.headSha);
 
   try {
     await octokit.pulls.createReview({

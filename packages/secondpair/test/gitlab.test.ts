@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AGENT_MARKER } from "../src/github/comments.js";
 import {
   getGlMrDiff,
+  getGlReviewState,
   listGlWontFixFindingIds,
   postGlReview,
   resolveGlDiscussionsForIds,
 } from "../src/gitlab/comments.js";
+import { formatBbSummaryBody } from "../src/bitbucket/comments.js";
 import { resolveGlRef } from "../src/gitlab/auth.js";
 import type { Finding, ReviewResult } from "../src/types.js";
 
@@ -48,6 +50,53 @@ describe("getGlMrDiff", () => {
     expect(diffText).toContain("+new");
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toBe("https://gitlab.com/api/v4/projects/group%2Fproj/merge_requests/7/changes");
+  });
+});
+
+describe("getGlReviewState", () => {
+  it("recovers head sha + full findings from the latest summary note", async () => {
+    withEnv({ GITLAB_TOKEN: "tok" });
+    const finding: Finding = {
+      file: "src/a.ts",
+      start_line: 12,
+      end_line: 12,
+      severity: "medium",
+      category: "bug",
+      confidence: 0.8,
+      title: "Off-by-one",
+      body: "Loop bound is off by one.",
+      id: "aabbccddeeff0011",
+    };
+    const summaryBody = formatBbSummaryBody({ findings: [finding], summary: "ok" }, false, "deadbeef");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { id: 1, body: "not the agent" },
+        { id: 2, body: summaryBody },
+      ],
+      headers: { get: () => null },
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getGlReviewState({ serverUrl: "https://gitlab.com", projectId: "1", mrIid: 2 }),
+    ).resolves.toEqual({ headSha: "deadbeef", findings: [finding] });
+  });
+
+  it("returns null when no note carries embedded state", async () => {
+    withEnv({ GITLAB_TOKEN: "tok" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ id: 1, body: "not the agent" }],
+      headers: { get: () => null },
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getGlReviewState({ serverUrl: "https://gitlab.com", projectId: "1", mrIid: 2 }),
+    ).resolves.toBeNull();
   });
 });
 

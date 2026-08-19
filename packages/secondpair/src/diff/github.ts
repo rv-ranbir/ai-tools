@@ -33,3 +33,19 @@ export async function getPrHeadSha(octokit: Octokit, pr: PrRef): Promise<string>
   const res = await octokit.pulls.get({ ...pr });
   return res.data.head.sha;
 }
+
+/** Paths changed between two commits on the PR's repo. */
+export async function listChangedFiles(
+  octokit: Octokit,
+  pr: PrRef,
+  base: string,
+  head: string,
+): Promise<Set<string>> {
+  const res = await octokit.repos.compareCommits({
+    owner: pr.owner,
+    repo: pr.repo,
+    base,
+    head,
+  });
+  return new Set((res.data.files ?? []).map((f) => f.filename));
+}

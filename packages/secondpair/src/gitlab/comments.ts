@@ -1,6 +1,7 @@
 import { formatBbCommentBody, formatBbSummaryBody } from "../bitbucket/comments.js";
 import { collectIdsFromBodies, parseFindingId } from "../finding-id.js";
 import { AGENT_MARKER, SEVERITY_EMOJI } from "../github/comments.js";
+import { parseReviewState, type ReviewState } from "../review-state.js";
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult } from "../types.js";
 import { resolveGlToken, type GlRef } from "./auth.js";
@@ -86,6 +87,35 @@ export async function listGlFindingIds(ref: GlRef): Promise<Set<string>> {
   return collectIdsFromBodies(
     notes.filter((n) => n.body?.includes(AGENT_MARKER)).map((n) => n.body ?? ""),
   );
+}
+
+/**
+ * Recover the full review state (head sha + every active finding) embedded
+ * in the most recent summary note — the source of truth for soft-match
+ * reconciliation and incremental (changed-files-only) re-review.
+ */
+export async function getGlReviewState(ref: GlRef): Promise<ReviewState | null> {
+  const notes = await listGlNotes(ref);
+  const summaries = notes.filter((n) => n.body?.includes(AGENT_MARKER) && n.type == null);
+  for (let i = summaries.length - 1; i >= 0; i--) {
+    const state = parseReviewState(summaries[i].body ?? "");
+    if (state) return state;
+  }
+  return null;
+}
+
+/** Paths changed between two commits in a GitLab project. */
+export async function listGlChangedFiles(ref: GlRef, from: string, to: string): Promise<Set<string>> {
+  const res = await glFetch(
+    `${ref.serverUrl}/api/v4/projects/${ref.projectId}/repository/compare?from=${from}&to=${to}`,
+  );
+  const data = (await res.json()) as { diffs?: { old_path?: string; new_path?: string }[] };
+  const paths = new Set<string>();
+  for (const d of data.diffs ?? []) {
+    if (d.new_path) paths.add(d.new_path);
+    if (d.old_path) paths.add(d.old_path);
+  }
+  return paths;
 }
 
 export async function listGlWontFixFindingIds(ref: GlRef): Promise<Set<string>> {
@@ -194,14 +224,11 @@ export async function postGlReview(opts: PostGlReviewOptions): Promise<void> {
   const notes = await listGlNotes(ref);
   const mine = notes.filter((n) => n.body?.includes(AGENT_MARKER));
   const existingIds = collectIdsFromBodies(mine.map((n) => n.body ?? ""));
-  const alreadySummarized = mine.some((n) => n.type == null);
 
-  if (!alreadySummarized || result.findings.length === 0) {
-    await glFetch(`${glApi(ref)}/notes`, {
-      method: "POST",
-      body: JSON.stringify({ body: formatBbSummaryBody(result, opts.failed) }),
-    });
-  }
+  await glFetch(`${glApi(ref)}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ body: formatBbSummaryBody(result, opts.failed, diffRefs.head_sha) }),
+  });
 
   const toPost = result.findingsToPost ?? result.findings;
   let posted = 0;

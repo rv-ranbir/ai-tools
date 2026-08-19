@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG: ReviewConfig = {
   huge_pr_token_threshold: 120_000,
   signal_detector: true,
   parallel_agents: true,
+  semantic_dedup: true,
 };
 
 const configSchema = z
@@ -59,6 +60,7 @@ const configSchema = z
     huge_pr_token_threshold: z.number().int().positive().nullable().optional(),
     signal_detector: z.boolean().optional(),
     parallel_agents: z.boolean().optional(),
+    semantic_dedup: z.boolean().optional(),
   })
   .strict();
 
