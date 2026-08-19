@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatBbCommentBody,
   formatBbSummaryBody,
+  listBbFindings,
   listBbWontFixFindingIds,
   postBbReview,
   resolveBbCommentsForIds,
@@ -68,6 +69,38 @@ describe("listBbWontFixFindingIds", () => {
     await expect(
       listBbWontFixFindingIds({ workspace: "acme", repoSlug: "api", prId: 7 }),
     ).resolves.toEqual(new Set(["aabbccddeeff0011"]));
+  });
+});
+
+describe("listBbFindings", () => {
+  it("reconstructs file/category/title/lines from a posted inline comment", async () => {
+    withEnv({ BITBUCKET_TOKEN: "tok" });
+    const posted = { ...finding, id: "aabbccddeeff0011" };
+    const body = formatBbCommentBody(posted);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          values: [
+            { id: 1, content: { raw: body }, inline: { path: "src/a.ts", to: 12 } },
+            { id: 2, content: { raw: "not an agent comment" } },
+          ],
+        }),
+      }),
+    );
+
+    const result = await listBbFindings({ workspace: "acme", repoSlug: "api", prId: 7 });
+    expect(result).toEqual([
+      {
+        id: "aabbccddeeff0011",
+        file: "src/a.ts",
+        category: "bug",
+        title: "Off-by-one in loop bound",
+        start_line: 12,
+        end_line: 12,
+      },
+    ]);
   });
 });
 

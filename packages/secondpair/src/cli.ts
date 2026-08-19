@@ -3,7 +3,13 @@ import { Command } from "commander";
 import path from "node:path";
 import pc from "picocolors";
 import { getModel, runIndex } from "repocairn";
-import { getBbPrDiff, listBbFindingIds, listBbWontFixFindingIds, postBbReview } from "./bitbucket/comments.js";
+import {
+  getBbPrDiff,
+  listBbFindingIds,
+  listBbFindings,
+  listBbWontFixFindingIds,
+  postBbReview,
+} from "./bitbucket/comments.js";
 import { resolveBbRef, type BbRef } from "./bitbucket/auth.js";
 import { getGlMrDiff, listGlFindingIds, listGlWontFixFindingIds, postGlReview } from "./gitlab/comments.js";
 import { resolveGlRef, type GlRef } from "./gitlab/auth.js";
@@ -22,6 +28,7 @@ import {
   loadPreviousIds,
   writeJsonReport,
 } from "./report/json.js";
+import type { PreviousFinding } from "./reconcile.js";
 import { runReview } from "./review.js";
 import { appendSuppressionIds, loadSuppressions } from "./suppressions.js";
 import { SEVERITIES } from "./types.js";
@@ -135,7 +142,7 @@ program
 
     const jsonPath = path.resolve(cwd, opts.json);
     const previousIds = await loadPreviousIds(jsonPath);
-    const previousFindings = await loadPreviousFindings(jsonPath);
+    const previousFindings: PreviousFinding[] = await loadPreviousFindings(jsonPath);
     const suppressions = await loadSuppressions(cwd, opts.suppressions);
     const ephemeral = new Set<string>();
     try {
@@ -156,6 +163,7 @@ program
         for (const id of await listGlFindingIds(glRef)) previousIds.add(id);
       } else if (bbRef) {
         for (const id of await listBbFindingIds(bbRef)) previousIds.add(id);
+        previousFindings.push(...(await listBbFindings(bbRef)));
       } else if (prRef && octokit) {
         for (const id of await listPostedFindingIds(octokit, prRef)) previousIds.add(id);
       }

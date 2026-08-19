@@ -1,8 +1,11 @@
 import { collectIdsFromBodies, embedFindingId, parseFindingId } from "../finding-id.js";
 import { AGENT_MARKER, SEVERITY_EMOJI } from "../github/comments.js";
+import type { PreviousFinding } from "../reconcile.js";
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult, Severity } from "../types.js";
 import { resolveBbAuthHeader, type BbRef } from "./auth.js";
+
+const BB_FINDING_CATEGORY_RE = /·\s*`([^`]+)`\s*·/;
 
 const API = "https://api.bitbucket.org/2.0";
 
@@ -59,6 +62,33 @@ export async function listBbFindingIds(ref: BbRef): Promise<Set<string>> {
   return collectIdsFromBodies(
     existing.filter((c) => c.content?.raw?.includes(AGENT_MARKER)).map((c) => c.content?.raw ?? ""),
   );
+}
+
+/** Reconstruct a finding's file/category/title/lines from its posted inline comment body. */
+function parseBbFindingComment(body: string, file: string, endLine: number): PreviousFinding | null {
+  const id = parseFindingId(body);
+  if (!id) return null;
+  const category = BB_FINDING_CATEGORY_RE.exec(body)?.[1];
+  const title = /^\*\*(.+)\*\*$/.exec(body.split("\n")[2]?.trim() ?? "")?.[1];
+  if (!category || !title) return null;
+  return { id, file, category: category as Finding["category"], title, start_line: endLine, end_line: endLine };
+}
+
+/**
+ * Full finding data (file/category/title/lines) recovered from live inline
+ * PR comments — used to soft-match rephrased findings across CI runs, where
+ * no local report file survives between fresh pipeline checkouts.
+ */
+export async function listBbFindings(ref: BbRef): Promise<PreviousFinding[]> {
+  const existing = await listBbComments(ref);
+  const out: PreviousFinding[] = [];
+  for (const c of existing) {
+    const body = c.content?.raw;
+    if (!body?.includes(AGENT_MARKER) || !c.inline?.path || c.inline.to == null) continue;
+    const parsed = parseBbFindingComment(body, c.inline.path, c.inline.to);
+    if (parsed) out.push(parsed);
+  }
+  return out;
 }
 
 export async function listBbWontFixFindingIds(ref: BbRef): Promise<Set<string>> {
