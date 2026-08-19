@@ -46,3 +46,41 @@ jobs:
 
       - name: Verify packed consumers
         run: npm run security:consumers
+
+  auto-tag:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Tag release if package versions were bumped
+        shell: bash
+        run: |
+          set -euo pipefail
+          repocairn_version="$(node -p "require('./packages/repocairn/package.json').version")"
+          secondpair_version="$(node -p "require('./packages/secondpair/package.json').version")"
+
+          if [[ "$repocairn_version" != "$secondpair_version" ]]; then
+            echo "repocairn ($repocairn_version) and secondpair ($secondpair_version) versions differ; skipping auto-tag." >&2
+            exit 0
+          fi
+
+          tag="v$repocairn_version"
+          if git rev-parse "$tag" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists; skipping."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
