@@ -42,7 +42,7 @@
     "@octokit/rest": "^21.0.0",
     "commander": "^12.1.0",
     "picocolors": "^1.1.0",
-    "repocairn": "^0.1.3",
+    "repocairn": "^0.1.4",
     "yaml": "^2.5.0",
     "zod": "^4.4.3"
   }
