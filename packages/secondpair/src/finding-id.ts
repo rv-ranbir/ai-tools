@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Finding } from "./types.js";
 
-export const FINDING_ID_MARKER_PREFIX = "<!-- pr-review-id:";
-export const FINDING_ID_RE = /<!--\s*pr-review-id:\s*([a-f0-9]+)\s*-->/i;
+export const FINDING_ID_MARKER_PREFIX = "[secondpair-id]: # (pr-review-id:";
+export const FINDING_ID_RE = /\[secondpair-id\]:\s*#\s*\(pr-review-id:\s*([a-f0-9]+)\)/i;
 
 /** Words that add churn without distinguishing the finding. */
 const STOPWORDS = new Set([
@@ -48,9 +48,9 @@ export function withFindingId<T extends Finding>(f: T): T & { id: string } {
 
 export function embedFindingId(body: string, id: string): string {
   if (FINDING_ID_RE.test(body)) {
-    return body.replace(FINDING_ID_RE, `${FINDING_ID_MARKER_PREFIX} ${id} -->`);
+    return body.replace(FINDING_ID_RE, `${FINDING_ID_MARKER_PREFIX} ${id})`);
   }
-  return `${body.trimEnd()}\n\n${FINDING_ID_MARKER_PREFIX} ${id} -->\n`;
+  return `${body.trimEnd()}\n\n${FINDING_ID_MARKER_PREFIX} ${id})\n`;
 }
 
 export function parseFindingId(body: string): string | null {

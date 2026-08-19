@@ -105,7 +105,7 @@ export function buildReviewUserPrompt(input: ReviewPromptInput): string {
   parts.push(`Reviewing: ${input.changeDescription}`);
 
   if (input.config.custom_instructions.trim()) {
-    parts.push(`# CUSTOM REVIEW INSTRUCTIONS (from this repository's .pr-review.yml)\n${input.config.custom_instructions.trim()}`);
+    parts.push(`# CUSTOM REVIEW INSTRUCTIONS (repository-provided)\n${input.config.custom_instructions.trim()}`);
   }
 
   if (input.context.trim()) {

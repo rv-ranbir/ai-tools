@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -50,6 +50,65 @@ describe("loadConfig", () => {
     const dir = await tempRepoWithConfig(null);
     expect((await loadConfig(dir)).redact_secrets).toBe(true);
   });
+
+  it("loads custom_instructions_file content when the default file exists, even with no .pr-review.yml", async () => {
+    const dir = await tempRepoWithConfig(null);
+    await writeFile(path.join(dir, ".pr-review-instructions.md"), "Follow our house style.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("Follow our house style.");
+  });
+
+  it("instructions file takes precedence over inline custom_instructions", async () => {
+    const dir = await tempRepoWithConfig('custom_instructions: "inline text"\n');
+    await writeFile(path.join(dir, ".pr-review-instructions.md"), "From file.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("From file.");
+  });
+
+  it("falls back to inline custom_instructions when no instructions file exists", async () => {
+    const dir = await tempRepoWithConfig('custom_instructions: "inline text"\n');
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("inline text");
+  });
+
+  it("honors a custom custom_instructions_file path", async () => {
+    const dir = await tempRepoWithConfig('custom_instructions_file: "docs/review-rules.mdc"\n');
+    await mkdir(path.join(dir, "docs"), { recursive: true });
+    await writeFile(path.join(dir, "docs", "review-rules.mdc"), "Company rules.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("Company rules.");
+  });
+
+  it("loads .secondpair/instructions.md, even with no .pr-review.yml", async () => {
+    const dir = await tempRepoWithConfig(null);
+    await mkdir(path.join(dir, ".secondpair"), { recursive: true });
+    await writeFile(path.join(dir, ".secondpair", "instructions.md"), "Dir guide.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("Dir guide.");
+  });
+
+  it("prefers .secondpair/instructions.mdc over instructions.md", async () => {
+    const dir = await tempRepoWithConfig(null);
+    await mkdir(path.join(dir, ".secondpair"), { recursive: true });
+    await writeFile(path.join(dir, ".secondpair", "instructions.md"), "md.\n", "utf8");
+    await writeFile(path.join(dir, ".secondpair", "instructions.mdc"), "mdc.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("mdc.");
+  });
+
+  it(".secondpair takes precedence over custom_instructions_file and inline custom_instructions", async () => {
+    const dir = await tempRepoWithConfig(
+      ['custom_instructions: "inline text"', 'custom_instructions_file: "docs/review-rules.mdc"'].join(
+        "\n",
+      ),
+    );
+    await mkdir(path.join(dir, "docs"), { recursive: true });
+    await writeFile(path.join(dir, "docs", "review-rules.mdc"), "Company rules.\n", "utf8");
+    await mkdir(path.join(dir, ".secondpair"), { recursive: true });
+    await writeFile(path.join(dir, ".secondpair", "instructions.md"), "Dir guide wins.\n", "utf8");
+    const config = await loadConfig(dir);
+    expect(config.custom_instructions).toBe("Dir guide wins.");
+  });
 });
 
 describe("glob matching", () => {
@@ -85,6 +144,11 @@ describe("applyCliOverrides", () => {
   it("overrides fail_on with a valid severity", () => {
     const config = applyCliOverrides(DEFAULT_CONFIG, { failOn: "critical" });
     expect(config.fail_on).toBe("critical");
+  });
+
+  it("accepts off to disable the gate", () => {
+    const config = applyCliOverrides(DEFAULT_CONFIG, { failOn: "off" });
+    expect(config.fail_on).toBe("off");
   });
 
   it("throws on an invalid --fail-on value", () => {

@@ -29,8 +29,10 @@ npx secondpair review --base main        # review branch vs main
 ```
 
 Nothing to configure to get useful output — defaults are sane
-(`fail_on: high`, `min_confidence: 0.5`). Add `.pr-review.yml` only when you
-want to change them (see [Config](#config)).
+(`fail_on: off`, `min_confidence: 0.5`). CI never fails on findings until you
+opt in (`fail_on: high` or `--fail-on high`); until then it's report/post
+only. Add `.pr-review.yml` only when you want to change them (see
+[Config](#config)).
 
 ## Reviewing a real PR (posting comments + CI gate)
 
@@ -76,7 +78,7 @@ before posting, on top of run-to-run fingerprint reconciliation.
 ## Config (`.pr-review.yml`, optional)
 
 ```yaml
-fail_on: high              # critical|high|medium|low|info — CI exit-1 threshold
+fail_on: off               # critical|high|medium|low|info|off — CI exit-1 threshold; default "off" never fails, still posts/reports
 min_confidence: 0.5
 ignore: ["**/*.generated.ts", "vendor/**"]
 context_token_budget: 8000 # repocairn context injected per chunk
@@ -99,7 +101,25 @@ redact_secrets: true       # strip secrets from diff/context before they reach t
 redact_patterns: []        # extra regexes, on top of built-in AWS/GitHub-token/PEM/etc
 write_suppressions: false  # persist "won't fix" replies to .pr-review-suppressions.yml
 custom_instructions: ""
+custom_instructions_file: ".pr-review-instructions.md" # optional guide file (any name/extension — .md, .mdc, ...); if it exists, its content REPLACES custom_instructions above
 ```
+
+Prefer a standalone file over the inline `custom_instructions` string once your
+rules grow past a line or two — easier to edit/review, and each
+project/company can keep its own review guide (house style, focus areas,
+things to always flag) without touching the YAML. None of this is mandatory
+— missing files just fall through to the next source. Precedence (highest
+first):
+
+1. `.secondpair/instructions.mdc` or `.secondpair/instructions.md` — same
+   convention as `.claude`/`.cursor`/`.repocairn`. Nothing to configure, just
+   drop the file in.
+2. `custom_instructions_file` (default `.pr-review-instructions.md`)
+3. inline `custom_instructions` above
+
+This only adds to the "CUSTOM REVIEW INSTRUCTIONS" prompt section — it never
+replaces secondpair's own review guidelines (what counts as a finding,
+severity, output format), only layers project-specific guidance on top.
 
 Suppress a finding permanently: reply "won't fix" (or react 👎) on its PR
 comment, or hand-edit `.pr-review-suppressions.yml` with the finding id

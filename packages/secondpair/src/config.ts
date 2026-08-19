@@ -15,12 +15,13 @@ const defaultCategories = Object.fromEntries(CATEGORIES.map((c) => [c, true])) a
 >;
 
 export const DEFAULT_CONFIG: ReviewConfig = {
-  fail_on: "high",
+  fail_on: "off",
   min_confidence: 0.5,
   ignore: [],
   context_token_budget: 8000,
   context_snippets: 3,
   custom_instructions: "",
+  custom_instructions_file: ".pr-review-instructions.md",
   categories: defaultCategories,
   temperature: null,
   limits: { max_findings_per_file: 5, max_total: 30 },
@@ -35,12 +36,13 @@ export const DEFAULT_CONFIG: ReviewConfig = {
 
 const configSchema = z
   .object({
-    fail_on: z.enum(SEVERITIES as [string, ...string[]]).optional(),
+    fail_on: z.enum([...SEVERITIES, "off"] as unknown as [string, ...string[]]).optional(),
     min_confidence: z.number().min(0).max(1).optional(),
     ignore: z.array(z.string()).optional(),
     context_token_budget: z.number().int().positive().optional(),
     context_snippets: z.number().int().min(0).optional(),
     custom_instructions: z.string().optional(),
+    custom_instructions_file: z.string().optional(),
     categories: z.partialRecord(z.enum(CATEGORIES as [string, ...string[]]), z.boolean()).optional(),
     temperature: z.number().min(0).max(2).optional(),
     limits: z
@@ -62,12 +64,53 @@ const configSchema = z
 
 export const CONFIG_FILENAME = ".pr-review.yml";
 
+export const SECONDPAIR_DIR = ".secondpair";
+const SECONDPAIR_DIR_CANDIDATES = ["instructions.mdc", "instructions.md"];
+
+/**
+ * `.secondpair/instructions.mdc` or `.secondpair/instructions.md` — same
+ * convention as `.claude`/`.cursor`/`.repocairn`. Checked before
+ * custom_instructions_file; wins over it when both exist.
+ */
+async function findDirInstructions(cwd: string): Promise<string | null> {
+  for (const name of SECONDPAIR_DIR_CANDIDATES) {
+    const file = path.join(cwd, SECONDPAIR_DIR, name);
+    if (existsSync(file)) return file;
+  }
+  return null;
+}
+
+/**
+ * Resolves the effective custom_instructions content, none of it mandatory:
+ * 1. `.secondpair/instructions.mdc|.md` (repo-standard location, highest precedence)
+ * 2. `custom_instructions_file` (repo-relative path, default `.pr-review-instructions.md`)
+ * 3. inline `custom_instructions` in .pr-review.yml (fallback, used as-is if neither file exists)
+ * This only ever feeds the CUSTOM REVIEW INSTRUCTIONS prompt section — it
+ * never touches REVIEW_SYSTEM_PROMPT, so it can't override review behavior,
+ * only add project-specific guidance on top of it.
+ */
+async function applyInstructionsFile(cwd: string, config: ReviewConfig): Promise<ReviewConfig> {
+  const dirFile = await findDirInstructions(cwd);
+  if (dirFile) {
+    const content = (await readFile(dirFile, "utf8")).trim();
+    if (content) return { ...config, custom_instructions: content };
+  }
+
+  if (!config.custom_instructions_file) return config;
+  const file = path.isAbsolute(config.custom_instructions_file)
+    ? config.custom_instructions_file
+    : path.join(cwd, config.custom_instructions_file);
+  if (!existsSync(file)) return config;
+  const content = (await readFile(file, "utf8")).trim();
+  return content ? { ...config, custom_instructions: content } : config;
+}
+
 /** Load .pr-review.yml from the repo root, merged over defaults. */
 export async function loadConfig(cwd: string, configPath?: string): Promise<ReviewConfig> {
   const file = configPath ?? path.join(cwd, CONFIG_FILENAME);
   if (!existsSync(file)) {
     if (configPath) throw new Error(`Config file not found: ${configPath}`);
-    return { ...DEFAULT_CONFIG };
+    return applyInstructionsFile(cwd, { ...DEFAULT_CONFIG });
   }
   const raw = YAML.parse(await readFile(file, "utf8")) ?? {};
   const parsed = configSchema.safeParse(raw);
@@ -78,7 +121,7 @@ export async function loadConfig(cwd: string, configPath?: string): Promise<Revi
     throw new Error(`Invalid ${path.basename(file)}:\n${issues}`);
   }
   compileRedactPatterns(parsed.data.redact_patterns ?? []);
-  return mergeConfig(parsed.data);
+  return applyInstructionsFile(cwd, mergeConfig(parsed.data));
 }
 
 export function mergeConfig(partial: z.infer<typeof configSchema>): ReviewConfig {
@@ -104,10 +147,10 @@ export function applyCliOverrides(
   const next = { ...config };
   if (overrides.writeSuppressions) next.write_suppressions = true;
   if (overrides.failOn) {
-    if (!SEVERITIES.includes(overrides.failOn as Severity)) {
-      throw new Error(`--fail-on must be one of: ${SEVERITIES.join(", ")}`);
+    if (overrides.failOn !== "off" && !SEVERITIES.includes(overrides.failOn as Severity)) {
+      throw new Error(`--fail-on must be one of: ${SEVERITIES.join(", ")}, off`);
     }
-    next.fail_on = overrides.failOn as Severity;
+    next.fail_on = overrides.failOn as Severity | "off";
   }
   return next;
 }

@@ -53,7 +53,7 @@ describe("listBbWontFixFindingIds", () => {
             {
               id: 10,
               content: {
-                raw: `Finding\n${AGENT_MARKER}\n<!-- pr-review-id: AABBCCDDEEFF0011 -->`,
+                raw: `Finding\n${AGENT_MARKER}\n[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)`,
               },
             },
             { id: 11, content: { raw: "context" }, parent: { id: 10 } },

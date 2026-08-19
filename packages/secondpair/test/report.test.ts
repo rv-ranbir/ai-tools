@@ -32,6 +32,9 @@ describe("shouldFail", () => {
   it("threshold info fails on anything", () => {
     expect(shouldFail([finding("info")], "info")).toBe(true);
   });
+  it("off never fails, even on critical", () => {
+    expect(shouldFail([finding("critical")], "off")).toBe(false);
+  });
 });
 
 describe("formatReport", () => {

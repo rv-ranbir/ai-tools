@@ -74,7 +74,10 @@ program
   )
   .option("--json <path>", "write findings JSON to this path", "pr-review-report.json")
   .option("--post", "post findings as inline PR review comments", false)
-  .option("--fail-on <severity>", `exit 1 at/above this severity (${SEVERITIES.join("|")}); overrides config`)
+  .option(
+    "--fail-on <severity>",
+    `exit 1 at/above this severity (${SEVERITIES.join("|")}|off); overrides config`,
+  )
   .option("--no-context", "review the diff without codemap context")
   .option("--dir <path>", "repository root", process.cwd())
   .option("--config <path>", "path to .pr-review.yml")

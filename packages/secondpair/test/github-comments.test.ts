@@ -29,7 +29,7 @@ describe("listWontFixFindingIds", () => {
     const comments = [
       {
         id: 10,
-        body: `Finding\n${AGENT_MARKER}\n<!-- pr-review-id: AABBCCDDEEFF0011 -->`,
+        body: `Finding\n${AGENT_MARKER}\n[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)`,
       },
       { id: 11, body: "Won't fix — intentional.", in_reply_to_id: 10 },
       { id: 12, body: "Won't fix", in_reply_to_id: 999 },
@@ -62,14 +62,14 @@ describe("resolveThreadsForIds", () => {
                   id: "thread-1",
                   isResolved: false,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: AABBCCDDEEFF0011 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)" }],
                   },
                 },
                 {
                   id: "thread-2",
                   isResolved: true,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: AABBCCDDEEFF0011 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)" }],
                   },
                 },
               ],
@@ -106,14 +106,14 @@ describe("resolveThreadsForIds", () => {
                   id: "thread-1",
                   isResolved: false,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: aabbccddeeff0011 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: aabbccddeeff0011)" }],
                   },
                 },
                 {
                   id: "thread-2",
                   isResolved: false,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: 1122334455667788 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: 1122334455667788)" }],
                   },
                 },
               ],
@@ -160,7 +160,7 @@ describe("resolveThreadsForIds", () => {
                   id: "thread-101",
                   isResolved: false,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: aabbccddeeff0011 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: aabbccddeeff0011)" }],
                   },
                 },
               ],
@@ -204,7 +204,7 @@ describe("postReview", () => {
                   id: "thread-1",
                   isResolved: false,
                   comments: {
-                    nodes: [{ body: "<!-- pr-review-id: aabbccddeeff0011 -->" }],
+                    nodes: [{ body: "[secondpair-id]: # (pr-review-id: aabbccddeeff0011)" }],
                   },
                 },
               ],

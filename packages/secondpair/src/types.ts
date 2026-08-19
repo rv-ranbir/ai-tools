@@ -71,13 +71,16 @@ export interface FileDiff {
 }
 
 export interface ReviewConfig {
-  fail_on: Severity;
+  /** "off" disables the CI gate entirely — findings still get reported/posted, exit code stays 0. */
+  fail_on: Severity | "off";
   min_confidence: number;
   ignore: string[];
   context_token_budget: number;
   /** Number of related files whose exact source is inlined into the prompt (0 disables). */
   context_snippets: number;
   custom_instructions: string;
+  /** Path to a markdown/mdc guide (repo-relative). If it exists, its content replaces custom_instructions. */
+  custom_instructions_file: string;
   categories: Record<Category, boolean>;
   /** Sampling temperature; null = provider default (openai-compat: 0; anthropic: adaptive thinking). */
   temperature: number | null;

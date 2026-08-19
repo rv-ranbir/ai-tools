@@ -79,8 +79,9 @@ export function summaryCounts(findings: Finding[]): string {
   return pc.bold(`${findings.length} finding(s): ${parts.join(", ")}`);
 }
 
-/** True when any finding meets or exceeds the fail_on severity threshold. */
-export function shouldFail(findings: Finding[], failOn: Severity): boolean {
+/** True when any finding meets or exceeds the fail_on severity threshold. "off" never fails. */
+export function shouldFail(findings: Finding[], failOn: Severity | "off"): boolean {
+  if (failOn === "off") return false;
   const threshold = severityRank(failOn);
   return findings.some((f) => severityRank(f.severity) <= threshold);
 }

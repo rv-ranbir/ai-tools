@@ -59,7 +59,7 @@ describe("listGlWontFixFindingIds", () => {
       json: async () => [
         {
           id: 10,
-          body: `Finding\n${AGENT_MARKER}\n<!-- pr-review-id: AABBCCDDEEFF0011 -->`,
+          body: `Finding\n${AGENT_MARKER}\n[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)`,
         },
         { id: 11, body: "False positive", parent_id: 10 },
         { id: 12, body: "Won't fix", parent_id: 999 },
@@ -91,7 +91,7 @@ describe("resolveGlDiscussionsForIds", () => {
               id: "discussion-1",
               notes: [
                 {
-                  body: "<!-- pr-review-id: AABBCCDDEEFF0011 -->",
+                  body: "[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)",
                   resolvable: true,
                   resolved: false,
                 },
@@ -101,7 +101,7 @@ describe("resolveGlDiscussionsForIds", () => {
               id: "discussion-2",
               notes: [
                 {
-                  body: "<!-- pr-review-id: AABBCCDDEEFF0011 -->",
+                  body: "[secondpair-id]: # (pr-review-id: AABBCCDDEEFF0011)",
                   resolvable: true,
                   resolved: true,
                 },
@@ -140,7 +140,7 @@ describe("resolveGlDiscussionsForIds", () => {
               id: "discussion-1",
               notes: [
                 {
-                  body: "<!-- pr-review-id: aabbccddeeff0011 -->",
+                  body: "[secondpair-id]: # (pr-review-id: aabbccddeeff0011)",
                   resolvable: true,
                   resolved: false,
                 },
@@ -150,7 +150,7 @@ describe("resolveGlDiscussionsForIds", () => {
               id: "discussion-2",
               notes: [
                 {
-                  body: "<!-- pr-review-id: 1122334455667788 -->",
+                  body: "[secondpair-id]: # (pr-review-id: 1122334455667788)",
                   resolvable: true,
                   resolved: false,
                 },
@@ -218,7 +218,7 @@ describe("postGlReview", () => {
         return {
           ok: true,
           json: async () => [
-            { body: `old\n<!-- pr-review-id: abc123def4567890 -->\n${AGENT_MARKER}`, type: null },
+            { body: `old\n[secondpair-id]: # (pr-review-id: abc123def4567890)\n${AGENT_MARKER}`, type: null },
           ],
           headers: { get: () => null },
           text: async () => "",
@@ -232,7 +232,7 @@ describe("postGlReview", () => {
               id: "discussion-1",
               notes: [
                 {
-                  body: "<!-- pr-review-id: feedfacefeedface -->",
+                  body: "[secondpair-id]: # (pr-review-id: feedfacefeedface)",
                   resolvable: true,
                   resolved: false,
                 },

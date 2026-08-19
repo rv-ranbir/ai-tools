@@ -4,7 +4,10 @@ import { collectIdsFromBodies, embedFindingId, parseFindingId } from "../finding
 import { collectWontFixIds } from "../suppress-signals.js";
 import type { Finding, ReviewResult, Severity } from "../types.js";
 
-export const AGENT_MARKER = "<!-- secondpair -->";
+// Reference-link definition, not an HTML comment: some renderers (Bitbucket)
+// HTML-escape raw comments instead of hiding them, leaving `<!-- -->` visible
+// in the rendered comment. `[label]: # (...)` is invisible everywhere.
+export const AGENT_MARKER = "[secondpair]: # (agent marker)";
 
 export const SEVERITY_EMOJI: Record<Severity, string> = {
   critical: "🟥",
