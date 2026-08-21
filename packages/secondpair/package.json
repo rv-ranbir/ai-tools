@@ -1,6 +1,6 @@
 {
   "name": "secondpair",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "LLM-powered pull request reviewer with whole-repo context from a persistent repocairn codemap",
   "type": "module",
   "bin": {
@@ -42,7 +42,7 @@
     "@octokit/rest": "^21.0.0",
     "commander": "^12.1.0",
     "picocolors": "^1.1.0",
-    "repocairn": "^0.1.5",
+    "repocairn": "^0.1.6",
     "yaml": "^2.5.0",
     "zod": "^4.4.3"
   }
