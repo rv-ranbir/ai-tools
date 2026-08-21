@@ -299,6 +299,7 @@ index 1111111..2222222 100644
       config: { ...DEFAULT_CONFIG, parallel_agents: false },
       changeDescription: "test",
       useContext: false,
+      previousIds: ["carried-id-1", "fixed-id-1"],
       changedFiles: new Set(["src/math.ts"]),
       carryForwardFindings: [carried],
     });
@@ -312,6 +313,8 @@ index 1111111..2222222 100644
     expect(ids).toContain("carried-id-1");
     expect(result.findings).toHaveLength(2);
     expect(result.reconciliation?.persistent).toContain("carried-id-1");
+    expect(result.reconciliation?.resolved).toEqual(["fixed-id-1"]);
+    expect(result.reconciliation?.resolved).not.toContain("carried-id-1");
   });
 
   it("semantic_dedup reclassifies a reworded 'new' finding as persistent and skips reposting it", async () => {

@@ -365,13 +365,19 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     log(`Carrying forward ${carryForward.length} finding(s) from unchanged file(s) (no re-analysis).`);
   }
   const finalActive = [...active, ...carryForward];
+  const carryForwardIds = new Set(
+    carryForward.map((f) => f.id?.toLowerCase()).filter((id): id is string => !!id),
+  );
   const finalReconciliation: Reconciliation = {
     ...reconciliation,
     persistent: [...reconciliation.persistent, ...carryForward.map((f) => f.id).filter((id): id is string => !!id)],
+    // Carry-forward findings were never re-analyzed, so reconcileFindings treats
+    // them as "missing from current output" and marks them resolved — undo that.
+    resolved: reconciliation.resolved.filter((id) => !carryForwardIds.has(id.toLowerCase())),
   };
 
   log(
-    `Reconciliation: ${reconciliation.new.length} new, ${finalReconciliation.persistent.length} persistent, ${reconciliation.resolved.length} resolved, ${reconciliation.suppressed.length} suppressed.`,
+    `Reconciliation: ${finalReconciliation.new.length} new, ${finalReconciliation.persistent.length} persistent, ${finalReconciliation.resolved.length} resolved, ${finalReconciliation.suppressed.length} suppressed.`,
   );
 
   for (const f of finalActive) stats.findingsBySeverity[f.severity] += 1;
