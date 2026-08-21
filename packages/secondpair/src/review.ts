@@ -294,10 +294,25 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     }
   }
 
+  // Carry-forward only applies to files we did not re-analyze. Findings on
+  // changed files belong in previousFindings — if the LLM no longer reports
+  // them they are resolved, not carried forward.
+  const carryForwardRaw = opts.carryForwardFindings ?? [];
+  const carryForward = carryForwardRaw.filter(
+    (f) => !opts.changedFiles || !opts.changedFiles.has(f.file),
+  );
+  if (carryForwardRaw.length > carryForward.length) {
+    log(
+      `Dropped ${carryForwardRaw.length - carryForward.length} carry-forward finding(s) on re-analyzed file(s).`,
+    );
+  }
+  const carryForwardIds = carryForward.map((f) => f.id).filter((id): id is string => !!id);
+
   const { active, toPost: toPostRaw, reconciliation: reconciliationRaw } = reconcileFindings(identified, {
     previousIds: opts.previousIds,
     previousFindings: opts.previousFindings,
     suppressedIds: opts.suppressedIds,
+    retainedIds: carryForwardIds,
   });
 
   // Exact-id and soft-match reconciliation can both miss a reworded finding
@@ -360,18 +375,17 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
   // Files untouched since the last review were never re-analyzed — their
   // prior findings carry forward as persistent without going through
   // reconciliation (nothing could have been "resolved" in code nobody edited).
-  const carryForward = opts.carryForwardFindings ?? [];
   if (carryForward.length > 0) {
     log(`Carrying forward ${carryForward.length} finding(s) from unchanged file(s) (no re-analysis).`);
   }
   const finalActive = [...active, ...carryForward];
   const finalReconciliation: Reconciliation = {
     ...reconciliation,
-    persistent: [...reconciliation.persistent, ...carryForward.map((f) => f.id).filter((id): id is string => !!id)],
+    persistent: [...reconciliation.persistent, ...carryForwardIds],
   };
 
   log(
-    `Reconciliation: ${reconciliation.new.length} new, ${finalReconciliation.persistent.length} persistent, ${reconciliation.resolved.length} resolved, ${reconciliation.suppressed.length} suppressed.`,
+    `Reconciliation: ${finalReconciliation.new.length} new, ${finalReconciliation.persistent.length} persistent, ${finalReconciliation.resolved.length} resolved, ${finalReconciliation.suppressed.length} suppressed.`,
   );
 
   for (const f of finalActive) stats.findingsBySeverity[f.severity] += 1;

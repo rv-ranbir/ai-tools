@@ -50,9 +50,38 @@ import {
   writeJsonReport,
 } from "./report/json.js";
 import type { PreviousFinding } from "./reconcile.js";
+import { type ReviewState } from "./review-state.js";
 import { runReview } from "./review.js";
 import { appendSuppressionIds, loadSuppressions } from "./suppressions.js";
 import { SEVERITIES, type Finding } from "./types.js";
+
+/** Split embedded review state into re-analyze vs carry-forward buckets. */
+function splitFindingsSinceLastReview(
+  prev: ReviewState,
+  currentHeadSha: string,
+  changedSinceLastReview: Set<string>,
+  previousIds: Set<string>,
+  previousFindings: PreviousFinding[],
+  carryForwardFindings: Finding[],
+  log: (msg: string) => void,
+): Set<string> | undefined {
+  for (const f of prev.findings) if (f.id) previousIds.add(f.id);
+  if (prev.headSha === currentHeadSha) {
+    carryForwardFindings.push(...prev.findings);
+    return new Set();
+  }
+  if (changedSinceLastReview.size === 0) {
+    log(
+      `Head SHA changed (${prev.headSha.slice(0, 7)} → ${currentHeadSha.slice(0, 7)}) but compare returned no changed files — re-analyzing all ${prev.findings.length} prior finding(s).`,
+    );
+    previousFindings.push(...prev.findings);
+    return undefined;
+  }
+  for (const f of prev.findings) {
+    (changedSinceLastReview.has(f.file) ? previousFindings : carryForwardFindings).push(f);
+  }
+  return changedSinceLastReview;
+}
 
 const program = new Command();
 const log = (msg: string) => console.error(pc.dim(msg));
@@ -162,8 +191,10 @@ program
     }
 
     const jsonPath = path.resolve(cwd, opts.json);
-    const previousIds = await loadPreviousIds(jsonPath);
-    const previousFindings: PreviousFinding[] = await loadPreviousFindings(jsonPath);
+    // Posted PR reviews recover state from the summary comment — a local report
+    // file must not duplicate ids/findings on top of that embedded state.
+    let previousIds = opts.post ? new Set<string>() : await loadPreviousIds(jsonPath);
+    let previousFindings: PreviousFinding[] = opts.post ? [] : await loadPreviousFindings(jsonPath);
     const suppressions = await loadSuppressions(cwd, opts.suppressions);
     const ephemeral = new Set<string>();
     try {
@@ -193,16 +224,15 @@ program
           currentHeadSha = glDiffRefs.head_sha;
           const prev = await getGlReviewState(glRef);
           if (prev) {
-            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
-            if (prev.headSha !== currentHeadSha) {
-              changedFiles = await listGlChangedFiles(glRef, prev.headSha, currentHeadSha);
-              for (const f of prev.findings) {
-                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
-              }
-            } else {
-              changedFiles = new Set();
-              carryForwardFindings.push(...prev.findings);
-            }
+            changedFiles = splitFindingsSinceLastReview(
+              prev,
+              currentHeadSha,
+              await listGlChangedFiles(glRef, prev.headSha, currentHeadSha),
+              previousIds,
+              previousFindings,
+              carryForwardFindings,
+              log,
+            );
           } else {
             for (const id of await listGlFindingIds(glRef)) previousIds.add(id);
           }
@@ -210,16 +240,15 @@ program
           currentHeadSha = await getBbPrHeadSha(bbRef);
           const prev = await getBbReviewState(bbRef);
           if (prev) {
-            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
-            if (prev.headSha !== currentHeadSha) {
-              changedFiles = await listBbChangedFiles(bbRef, prev.headSha, currentHeadSha);
-              for (const f of prev.findings) {
-                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
-              }
-            } else {
-              changedFiles = new Set();
-              carryForwardFindings.push(...prev.findings);
-            }
+            changedFiles = splitFindingsSinceLastReview(
+              prev,
+              currentHeadSha,
+              await listBbChangedFiles(bbRef, prev.headSha, currentHeadSha),
+              previousIds,
+              previousFindings,
+              carryForwardFindings,
+              log,
+            );
           } else {
             for (const id of await listBbFindingIds(bbRef)) previousIds.add(id);
           }
@@ -227,16 +256,15 @@ program
           currentHeadSha = await getPrHeadSha(octokit, prRef);
           const prev = await getReviewState(octokit, prRef);
           if (prev) {
-            for (const f of prev.findings) if (f.id) previousIds.add(f.id);
-            if (prev.headSha !== currentHeadSha) {
-              changedFiles = await listChangedFiles(octokit, prRef, prev.headSha, currentHeadSha);
-              for (const f of prev.findings) {
-                (changedFiles.has(f.file) ? previousFindings : carryForwardFindings).push(f);
-              }
-            } else {
-              changedFiles = new Set();
-              carryForwardFindings.push(...prev.findings);
-            }
+            changedFiles = splitFindingsSinceLastReview(
+              prev,
+              currentHeadSha,
+              await listChangedFiles(octokit, prRef, prev.headSha, currentHeadSha),
+              previousIds,
+              previousFindings,
+              carryForwardFindings,
+              log,
+            );
           } else {
             for (const id of await listPostedFindingIds(octokit, prRef)) previousIds.add(id);
           }

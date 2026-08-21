@@ -56,6 +56,18 @@ describe("formatReport", () => {
     expect(text).toContain("No findings");
   });
 
+  it("shows lifecycle counts when there are no active findings", () => {
+    const text = formatReport({
+      summary: "All prior issues fixed.",
+      findings: [],
+      dropped: [],
+      reconciliation: { new: [], persistent: [], resolved: ["abc123"], suppressed: [] },
+    });
+    expect(text).toContain("No findings");
+    expect(text).toContain("1 resolved");
+    expect(text).toContain("0 persistent");
+  });
+
   it("shows the high-level-review banner when set", () => {
     const text = formatReport({
       summary: "Big diff.",

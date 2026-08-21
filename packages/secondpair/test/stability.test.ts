@@ -182,4 +182,14 @@ describe("reconcileFindings", () => {
     expect(result.active[0].id).toBe(priorId);
     expect(result.toPost).toHaveLength(0);
   });
+
+  it("does not mark retained ids as resolved when absent from current output", () => {
+    const retainedId = "aabbccddeeff0011";
+    const result = reconcileFindings([], {
+      previousIds: [retainedId, "deadbeefdeadbeef"],
+      retainedIds: [retainedId],
+    });
+    expect(result.reconciliation.resolved).toEqual(["deadbeefdeadbeef"]);
+    expect(result.reconciliation.resolved).not.toContain(retainedId);
+  });
 });
