@@ -27,6 +27,8 @@ export function reconcileFindings(
     previousIds?: Iterable<string>;
     previousFindings?: PreviousFinding[];
     suppressedIds?: Iterable<string>;
+    /** Prior ids still active but absent from this LLM pass (e.g. carry-forward on unchanged files). */
+    retainedIds?: Iterable<string>;
   } = {},
 ): ReconcileResult {
   const previous = new Set([...(opts.previousIds ?? [])].map((id) => id.toLowerCase()));
@@ -34,6 +36,7 @@ export function reconcileFindings(
     if (pf.id) previous.add(pf.id.toLowerCase());
   }
   const suppressed = new Set([...(opts.suppressedIds ?? [])].map((id) => id.toLowerCase()));
+  const retained = new Set([...(opts.retainedIds ?? [])].map((id) => id.toLowerCase()));
   const previousFindings = [...(opts.previousFindings ?? [])].filter((p) => p.id);
 
   const reconciliation: Reconciliation = {
@@ -92,7 +95,7 @@ export function reconcileFindings(
   }
 
   for (const id of previous) {
-    if (!currentIds.has(id) && !suppressed.has(id)) {
+    if (!currentIds.has(id) && !suppressed.has(id) && !retained.has(id)) {
       reconciliation.resolved.push(id);
     }
   }

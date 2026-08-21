@@ -317,6 +317,57 @@ index 1111111..2222222 100644
     expect(result.reconciliation?.resolved).not.toContain("carried-id-1");
   });
 
+  it("marks all re-analyzed findings resolved when the LLM returns nothing", async () => {
+    const priorIds = ["aaaa1111bbbb2222", "cccc3333dddd4444"];
+    mockedCall.mockResolvedValueOnce({ summary: "All prior issues appear fixed.", findings: [] });
+    const result = await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
+      changeDescription: "test",
+      useContext: false,
+      previousIds: priorIds,
+      previousFindings: [
+        { id: priorIds[0], file: "src/math.ts", category: "bug", title: "Issue one", start_line: 2, end_line: 3 },
+        { id: priorIds[1], file: "src/math.ts", category: "bug", title: "Issue two", start_line: 2, end_line: 3 },
+      ],
+      changedFiles: new Set(["src/math.ts"]),
+      carryForwardFindings: [],
+    });
+    expect(result.findings).toHaveLength(0);
+    expect(result.reconciliation?.persistent).toEqual([]);
+    expect(result.reconciliation?.resolved).toEqual(priorIds);
+  });
+
+  it("does not carry forward findings that were re-analyzed on changed files", async () => {
+    const fixed = {
+      file: "src/math.ts",
+      start_line: 2,
+      end_line: 3,
+      severity: "high" as const,
+      category: "bug" as const,
+      confidence: 0.95,
+      title: "Fixed issue",
+      body: "x",
+      id: "fixed-on-changed-file",
+    };
+    mockedCall.mockResolvedValueOnce({ summary: "clean", findings: [] });
+    const result = await runReview({
+      cwd: process.cwd(),
+      diffText: DIFF,
+      config: { ...DEFAULT_CONFIG, parallel_agents: false },
+      changeDescription: "test",
+      useContext: false,
+      previousIds: [fixed.id],
+      previousFindings: [fixed],
+      changedFiles: new Set(["src/math.ts"]),
+      carryForwardFindings: [fixed],
+    });
+    expect(result.findings).toHaveLength(0);
+    expect(result.reconciliation?.persistent).toEqual([]);
+    expect(result.reconciliation?.resolved).toEqual([fixed.id]);
+  });
+
   it("semantic_dedup reclassifies a reworded 'new' finding as persistent and skips reposting it", async () => {
     const priorFinding = {
       id: "prior-id-1",

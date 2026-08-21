@@ -31,6 +31,14 @@ export function formatReport(
 
   if (result.findings.length === 0) {
     lines.push(pc.green("✓ No findings."));
+    if (result.reconciliation) {
+      const r = result.reconciliation;
+      lines.push(
+        pc.dim(
+          `lifecycle: ${r.new.length} new · ${r.persistent.length} persistent · ${r.resolved.length} resolved · ${r.suppressed.length} suppressed`,
+        ),
+      );
+    }
     return lines.join("\n");
   }
 

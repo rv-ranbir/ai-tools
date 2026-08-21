@@ -294,10 +294,25 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
     }
   }
 
+  // Carry-forward only applies to files we did not re-analyze. Findings on
+  // changed files belong in previousFindings — if the LLM no longer reports
+  // them they are resolved, not carried forward.
+  const carryForwardRaw = opts.carryForwardFindings ?? [];
+  const carryForward = carryForwardRaw.filter(
+    (f) => !opts.changedFiles || !opts.changedFiles.has(f.file),
+  );
+  if (carryForwardRaw.length > carryForward.length) {
+    log(
+      `Dropped ${carryForwardRaw.length - carryForward.length} carry-forward finding(s) on re-analyzed file(s).`,
+    );
+  }
+  const carryForwardIds = carryForward.map((f) => f.id).filter((id): id is string => !!id);
+
   const { active, toPost: toPostRaw, reconciliation: reconciliationRaw } = reconcileFindings(identified, {
     previousIds: opts.previousIds,
     previousFindings: opts.previousFindings,
     suppressedIds: opts.suppressedIds,
+    retainedIds: carryForwardIds,
   });
 
   // Exact-id and soft-match reconciliation can both miss a reworded finding
@@ -360,20 +375,13 @@ export async function runReview(opts: RunReviewOptions): Promise<RunReviewOutput
   // Files untouched since the last review were never re-analyzed — their
   // prior findings carry forward as persistent without going through
   // reconciliation (nothing could have been "resolved" in code nobody edited).
-  const carryForward = opts.carryForwardFindings ?? [];
   if (carryForward.length > 0) {
     log(`Carrying forward ${carryForward.length} finding(s) from unchanged file(s) (no re-analysis).`);
   }
   const finalActive = [...active, ...carryForward];
-  const carryForwardIds = new Set(
-    carryForward.map((f) => f.id?.toLowerCase()).filter((id): id is string => !!id),
-  );
   const finalReconciliation: Reconciliation = {
     ...reconciliation,
-    persistent: [...reconciliation.persistent, ...carryForward.map((f) => f.id).filter((id): id is string => !!id)],
-    // Carry-forward findings were never re-analyzed, so reconcileFindings treats
-    // them as "missing from current output" and marks them resolved — undo that.
-    resolved: reconciliation.resolved.filter((id) => !carryForwardIds.has(id.toLowerCase())),
+    persistent: [...reconciliation.persistent, ...carryForwardIds],
   };
 
   log(
